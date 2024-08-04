@@ -19,7 +19,7 @@ This was build and tested specifically for the ATTINY 1616.  It may or may not w
 
 ## SAMPLES
 See some samples here.<p></p>
-<a href="./Samples/README.MD"><img src="/Images/MPLAB_Refresh.png" width=400>/"</a>
+<a href="./Samples/README.MD"><img src="/Samples/MPLAB_Refresh.png" width=400>/"
 
 ## Hardware/Software Utilized
 
