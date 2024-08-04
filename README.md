@@ -4,7 +4,16 @@ UPDI Protocol
 Low Level Decoder for Saleae Logic 2 Software
 
 ## UPDI Protocol
-The UPDI Protocol is used my MicroChip for their ATTINY Series of AVR 8 Bit Microcontrollers.
+The UPDI Protocol is used by MicroChip for their ATTINY Series of AVR 8 Bit Microcontrollers (among others).
+It is a UART serial interface with a single wire/pin.  Both receive and transmit take turns on the same wire.
+
+The Protocol is used for both programming the chip (which is well documented in the datasheet), as well as for OCD (On Chip Debugging).
+
+Decoding the protocol can be a bit tricky, as it can (and often does) change bitrate while being used for debugging.  Thus I built a plugin for the Saleae Logic 2 software to decode and sync baud based on the protocol.
+
+This analyzer then just simply outputs the data bytes.  
+
+To analyze the full protocol I build a separate High Level Analyzer plug for Saleae Logic 2 that reads the byte stream and decodes it into the UPDI protocol nmemonics.
 
 This was build and tested specifically for the ATTINY 1616.  It may or may not work with any other part.  I prototyped first with the Adafruit ATTINY 1616 Seesaw board, and then integrated the ATTINY1616 directly into my own PCB design.
 
