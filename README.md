@@ -10,7 +10,7 @@ This was build and tested specifically for the ATTINY 1616.  It may or may not w
 
 ## ATTINY1616
 
-![Microchip ATTINY1616](/Images/Microchip_ATTINY1616.png)
+<img src="/Images/Microchip_ATTINY1616.png" width="400">ATTINY1616</img>
 https://www.microchip.com/en-us/product/attiny1616
 https://ww1.microchip.com/downloads/aemDocuments/documents/MCU08/ProductDocuments/DataSheets/ATtiny1614-16-17-DataSheet-DS40002204A.pdf
 
@@ -18,10 +18,11 @@ https://www.adafruit.com/product/5690
 
 ## Microchip PICKIT 5 In-Circuit Debugger
 
-![Microchip PICKIT 5 Debugger](/Images/Microchip_PICKIT_5.png)
+<img src="/Images/Microchip_PICKIT_5.png" width="400">PICKIT 5 Debugger</img>
 https://www.microchip.com/en-us/development-tool/pg164150
 
 ## Logic Analzer
-
+<img src="/Images/Cheap_LogicAnalyzer.jpg" width="400">Cheap Logic Analyzer</img>
 ![Cheap Logic Analyzer](/Images/Cheap_LogicAnalyzer.jpg)
+
 https://www.amazon.com/gp/product/B077LSG5P2/
