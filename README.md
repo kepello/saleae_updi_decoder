@@ -1,4 +1,5 @@
-# Low Level Decoder of Microchip UPDI Protocol for Saleae Logic 2 Software
+# Microchip UPDI Protocol Decoder
+A Low Level Decoder plugin for Saleae Logic 2 Software
 
 ## UPDI Protocol
 The UPDI Protocol is used by MicroChip for their ATTINY Series of AVR 8 Bit Microcontrollers (among others).
