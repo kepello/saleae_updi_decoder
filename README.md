@@ -21,7 +21,10 @@ This was build and tested specifically for the ATTINY 1616.  It may or may not w
 
 See some samples <a href="./Samples/README.MD">here</a>.
 
-## Hardware Utilized
+## Hardware/Software Utilized
+
+### Saelea Logic2 Software
+Find the software, free to download, <a href="https://www.saleae.com/pages/downloads">here</a>.
 
 ### ATTINY1616
 <a href="https://www.microchip.com/en-us/product/attiny1616">
