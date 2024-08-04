@@ -18,8 +18,8 @@ To analyze the full protocol I build a separate High Level Analyzer plug for Sal
 This was build and tested specifically for the ATTINY 1616.  It may or may not work with any other part.  I prototyped first with the Adafruit ATTINY 1616 Seesaw board, and then integrated the ATTINY1616 directly into my own PCB design.
 
 ## SAMPLES
-
-See some samples <a href="./Samples/README.MD">here</a>.
+See some samples here.<p></p>
+<a href="./Samples/README.MD"><img src="/Images/MPLAB_Refresh.png" width=400>/"</a>
 
 ## Hardware/Software Utilized
 
