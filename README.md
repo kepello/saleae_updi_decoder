@@ -9,20 +9,25 @@ The UPDI Protocol is used my MicroChip for their ATTINY Series of AVR 8 Bit Micr
 This was build and tested specifically for the ATTINY 1616.  It may or may not work with any other part.  I prototyped first with the Adafruit ATTINY 1616 Seesaw board, and then integrated the ATTINY1616 directly into my own PCB design.
 
 ## ATTINY1616
+<a href="https://www.microchip.com/en-us/product/attiny1616">
+    <img src="/Images/Microchip_ATTINY1616.png" width="200">ATTINY1616</img>
+</a>
+Find the datasheet <a href="https://ww1.microchip.com/downloads/aemDocuments/documents/MCU08/ProductDocuments/DataSheets/ATtiny1614-16-17-DataSheet-DS40002204A.pdf">here</a>.
 
-<img src="/Images/Microchip_ATTINY1616.png" width="400">ATTINY1616</img>
-https://www.microchip.com/en-us/product/attiny1616
-https://ww1.microchip.com/downloads/aemDocuments/documents/MCU08/ProductDocuments/DataSheets/ATtiny1614-16-17-DataSheet-DS40002204A.pdf
-
-https://www.adafruit.com/product/5690
+## AdaFruit
+<a href="https://www.adafruit.com/product/5690">
+    <img src="/Images/Adafruit_5690.png" width="200">Adafruit ATTINY1616</img>
+</a>
 
 ## Microchip PICKIT 5 In-Circuit Debugger
+<a href="https://www.microchip.com/en-us/development-tool/pg164150">
+    <img src="/Images/Microchip_PICKIT_5.png" width="200">PICKIT 5 Debugger</img>
+</a>a>
 
-<img src="/Images/Microchip_PICKIT_5.png" width="400">PICKIT 5 Debugger</img>
-https://www.microchip.com/en-us/development-tool/pg164150
 
 ## Logic Analzer
-<img src="/Images/Cheap_LogicAnalyzer.jpg" width="400">Cheap Logic Analyzer</img>
-![Cheap Logic Analyzer](/Images/Cheap_LogicAnalyzer.jpg)
+<a href="https://www.amazon.com/gp/product/B077LSG5P2/">
+    <img src="/Images/Cheap_LogicAnalyzer.jpg" width="100">Cheap Logic Analyzer</img>
+</a>
 
-https://www.amazon.com/gp/product/B077LSG5P2/
+
