@@ -1,6 +1,6 @@
-#UPDI Decoding Samples
+# UPDI Decoding Samples
 
-##MPLAB Software
+## MPLAB Software
 
 MPLAB PICKIT 5, Debugger Refresh<p></p>
 <img src="./MPLAB_Refresh.png"/>
