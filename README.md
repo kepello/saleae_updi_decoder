@@ -16,7 +16,7 @@ Find the datasheet <a href="https://ww1.microchip.com/downloads/aemDocuments/doc
 
 ## AdaFruit
 <a href="https://www.adafruit.com/product/5690">
-    <img src="/Images/Adafruit_5690.png" width="200"/>
+    <img src="/Images/Adafruit_5690.jpg" width="200"/>
 </a>
 
 ## Microchip PICKIT 5 In-Circuit Debugger
