@@ -24,7 +24,7 @@ See some samples <a href="./Samples/README.MD">here</a>.
 ## Hardware/Software Utilized
 
 ### Saelea Logic2 Software
-Find the software, free to download, <a href="https://www.saleae.com/pages/downloads">here</a>.
+<a href="https://www.saleae.com/pages/downloads"><img src="/Images/Logic2.png" width="200"></a>.
 
 ### ATTINY1616
 <a href="https://www.microchip.com/en-us/product/attiny1616">
