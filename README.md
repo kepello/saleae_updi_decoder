@@ -23,7 +23,7 @@ See some samples <a href="./Samples/README.MD">here</a>.
 
 ## Hardware/Software Utilized
 
-### Saelea Logic2 Software
+### Saleae Logic2 Software
 <a href="https://www.saleae.com/pages/downloads"><img src="/Images/Logic2.png" width="200"></a>.
 
 ### ATTINY1616
