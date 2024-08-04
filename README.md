@@ -19,9 +19,9 @@ This was build and tested specifically for the ATTINY 1616.  It may or may not w
 
 ## SAMPLES
 
-See some samples <a href="./Samples/README.MD>here</a>.
+See some samples <a href="./Samples/README.MD">here</a>.
 
-## Hardware Utilizez
+## Hardware Utilized
 
 ### ATTINY1616
 <a href="https://www.microchip.com/en-us/product/attiny1616">
