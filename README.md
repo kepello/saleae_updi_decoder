@@ -10,24 +10,24 @@ This was build and tested specifically for the ATTINY 1616.  It may or may not w
 
 ## ATTINY1616
 <a href="https://www.microchip.com/en-us/product/attiny1616">
-    <img src="/Images/Microchip_ATTINY1616.png" width="200">ATTINY1616</img>
+    <img src="/Images/Microchip_ATTINY1616.png" width="200"/>
 </a>
 Find the datasheet <a href="https://ww1.microchip.com/downloads/aemDocuments/documents/MCU08/ProductDocuments/DataSheets/ATtiny1614-16-17-DataSheet-DS40002204A.pdf">here</a>.
 
 ## AdaFruit
 <a href="https://www.adafruit.com/product/5690">
-    <img src="/Images/Adafruit_5690.png" width="200">Adafruit ATTINY1616</img>
+    <img src="/Images/Adafruit_5690.png" width="200"/>
 </a>
 
 ## Microchip PICKIT 5 In-Circuit Debugger
 <a href="https://www.microchip.com/en-us/development-tool/pg164150">
-    <img src="/Images/Microchip_PICKIT_5.png" width="200">PICKIT 5 Debugger</img>
+    <img src="/Images/Microchip_PICKIT_5.png" width="200"/>
 </a>a>
 
 
-## Logic Analzer
-<a href="https://www.amazon.com/gp/product/B077LSG5P2/">
-    <img src="/Images/Cheap_LogicAnalyzer.jpg" width="100">Cheap Logic Analyzer</img>
+## Cheap Amazon.com Logic Analzer
+<a href="https://www.amazon.com/gp/product/B077LSG5P2">
+    <img src="/Images/Cheap_LogicAnalyzer.jpg" width="100"/>
 </a>
 
 
