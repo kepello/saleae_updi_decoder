@@ -1,0 +1,13 @@
+{
+  "name": "UPDI Analyzer",
+  "apiVersion": "1.0.0",
+  "author": "Carl Lance",
+  "version": "0.0.1",
+  "description": "Microchip UPDI Protocol Analyzer",
+  "extensions": {
+    "UPDI Analyzer": {
+      "type": "HighLevelAnalyzer",
+      "entryPoint": "HighLevelAnalyzer.Hla"
+    }
+  }
+}
