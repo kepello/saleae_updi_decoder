@@ -25,7 +25,7 @@ here</a>.
 ## Microchip PICKIT 5 In-Circuit Debugger
 <a href="https://www.microchip.com/en-us/development-tool/pg164150">
     <img src="/Images/Microchip_PICKIT_5.png" width="200"/>
-</a>a>
+</a>
 
 
 ## Cheap Amazon.com Logic Analzer
