@@ -98,58 +98,58 @@ class Hla(HighLevelAnalyzer):
     def decode(self, frame: AnalyzerFrame):
 
         self.frames = []
+        if ('data' in frame.data):
+            b = frame.data['data'][0]
+            self.payload.append(b)
 
-        b = frame.data['data'][0]
-        self.payload.append(b)
+            if (self.start_time == 0):
+                self.start_time = frame.start_time
 
-        if (self.start_time == 0):
-            self.start_time = frame.start_time
+            if (self.state == States.Start):
+                #debug('start')
+                self.start_time = frame.start_time
+                self.data = DataArray()
+                self.address = DataArray()
+                if (b == Codes.BREAK):
+                    self.breakcode(frame)
+                elif (b == Codes.SYNC):
+                    self.sync(frame)
+                elif (b == Codes.ACK):
+                    self.ack(frame)
+                elif (b & 0b00010000):
+                    self.error(frame)
+                else:
+                    self.code(b)
+                    self.lastCode = b
+                    return self.frames
 
-        if (self.state == States.Start):
-            #debug('start')
-            self.start_time = frame.start_time
-            self.data = DataArray()
-            self.address = DataArray()
-            if (b == Codes.BREAK):
-                self.breakcode(frame)
-            elif (b == Codes.SYNC):
-                self.sync(frame)
-            elif (b == Codes.ACK):
-                self.ack(frame)
-            elif (b & 0b00010000):
-                self.error(frame)
-            else:
-                self.code(b)
-                self.lastCode = b
-                return self.frames
+            if (self.state == States.Address):
+                #debug('address addressLength 0x%02X = 0x%02X',(self.addressLength,b))
+                if (self.addressLength != 0):
+                    self.address.append(b)
+                    self.addressLength -= 1
+                if self.addressLength == 0:
+                    #debug('address', self.address)
+                    self.state = States.Data
 
-        if (self.state == States.Address):
-            #debug('address addressLength 0x%02X = 0x%02X',(self.addressLength,b))
-            if (self.addressLength != 0):
-                self.address.append(b)
-                self.addressLength -= 1
-            if self.addressLength == 0:
-                #debug('address', self.address)
-                self.state = States.Data
-
-        if (self.state == States.Data):
-            #debug('data dataLength 0x%02X = 0x%02X' % (self.dataLength, b))
-            if (self.dataLength != 0):
-                self.data.append(b)
-                self.dataLength -= 1
-            if self.dataLength == 0:
-                #debug('data', self.data)
-                self.endtime = frame.end_time
-                self.complete()
-                # Do we need to repeat this command?
-                if self.command != Opcodes.REPEAT:
-                    if (self.repeatCount>0):
-                        self.start_time = 0
-                        self.data = DataArray()
-                        self.address = DataArray()
-                        self.code(self.lastCode)
-                        self.repeatCount -= 1
-
+            if (self.state == States.Data):
+                #debug('data dataLength 0x%02X = 0x%02X' % (self.dataLength, b))
+                if (self.dataLength != 0):
+                    self.data.append(b)
+                    self.dataLength -= 1
+                if self.dataLength == 0:
+                    #debug('data', self.data)
+                    self.endtime = frame.end_time
+                    self.complete()
+                    # Do we need to repeat this command?
+                    if self.command != Opcodes.REPEAT:
+                        if (self.repeatCount>0):
+                            self.start_time = 0
+                            self.data = DataArray()
+                            self.address = DataArray()
+                            self.code(self.lastCode)
+                            self.repeatCount -= 1
+            
         return self.frames
 
     def error(self, frame):

@@ -3,6 +3,178 @@
 #include <AnalyzerChannelData.h>
 #include <AnalyzerResults.h>
 
+// Check for data
+int UPDIAnalyzer::isData() {
+    int data = 0;
+    U64 data_start = mUPDI->GetSampleNumber();
+
+    // Data follows a Start Bit
+    if (mUPDI->GetBitState()!=BIT_LOW) return -1;
+    
+    // Advance to first bit
+    mUPDI->AdvanceToNextEdge();
+
+    // If we don't have a bit width yet, approximate with two bits
+    if (bit_width == 0) {
+        bit_width = (mUPDI->GetSampleOfNextEdge() - data_start)/2;
+    }
+
+    // Get 8 data bits 
+    data = 0;
+    bool is_error = false;
+    U8 even_count = 0;
+
+    // Advance to the middle of the bits
+    mUPDI->Advance(bit_width/2);
+    for (int b=0; b<8; b++) {
+
+        // Get that bit value
+        if (mUPDI->GetBitState()==BIT_HIGH) {
+            data += (1<<b);
+            even_count++;
+        }
+
+        // Mark them
+        mResults->AddMarker(
+            mUPDI->GetSampleNumber(),
+            AnalyzerResults::Dot,
+            mSettings->mInputChannel);
+    }
+
+    // Parity 
+    mUPDI->Advance(bit_width);
+    if ((mUPDI->GetBitState()==BIT_HIGH) && (even_count&1)) {
+        mResults->AddMarker(
+                mUPDI->GetSampleNumber(),
+                AnalyzerResults::X,
+                mSettings->mInputChannel);
+        is_error = true;
+    } else {
+        mResults->AddMarker(
+                mUPDI->GetSampleNumber(),
+                AnalyzerResults::Square,
+                mSettings->mInputChannel);
+    }
+
+    // Stop Bit
+    mUPDI->Advance(bit_width);
+    if (mUPDI->GetBitState() != BIT_HIGH) {
+        mResults->AddMarker(
+            mUPDI->GetSampleNumber(),
+            AnalyzerResults::X,
+            mSettings->mInputChannel);
+        is_error = true;
+    } else {
+        mResults->AddMarker(
+            mUPDI->GetSampleNumber(),
+            AnalyzerResults::Square,
+            mSettings->mInputChannel);
+    }
+
+    // Stop Bit
+    mUPDI->Advance(bit_width);
+    if (mUPDI->GetBitState() != BIT_HIGH) {
+        mResults->AddMarker(
+            mUPDI->GetSampleNumber(),
+            AnalyzerResults::X,
+            mSettings->mInputChannel);
+        is_error = true;
+    } else {
+        mResults->AddMarker(
+            mUPDI->GetSampleNumber(),
+            AnalyzerResults::Square,
+            mSettings->mInputChannel);
+    }
+
+    // Back to regular spacing
+    mUPDI->Advance(bit_width/2);
+
+    if (is_error) return -1;
+    return data;
+}
+
+// Check for a SYNC bit
+bool UPDIAnalyzer::isSync() {
+    U64 sync_start = mUPDI->GetSampleNumber();
+    // Start Bit
+    if (mUPDI->GetBitState() != BIT_LOW) return false; // Start
+            mResults->AddMarker(
+            mUPDI->GetSampleNumber(),
+            AnalyzerResults::Dot,
+            mSettings->mInputChannel);
+    mUPDI->AdvanceToNextEdge();
+    if (mUPDI->GetBitState() != BIT_HIGH) return false; // 0
+            mResults->AddMarker(
+            mUPDI->GetSampleNumber(),
+            AnalyzerResults::Dot,
+            mSettings->mInputChannel);
+    mUPDI->AdvanceToNextEdge();
+    if (mUPDI->GetBitState() != BIT_LOW) return false; // 1
+            mResults->AddMarker(
+            mUPDI->GetSampleNumber(),
+            AnalyzerResults::Dot,
+            mSettings->mInputChannel);
+    mUPDI->AdvanceToNextEdge();
+    if (mUPDI->GetBitState() != BIT_HIGH) return false; // 2
+            mResults->AddMarker(
+            mUPDI->GetSampleNumber(),
+            AnalyzerResults::Dot,
+            mSettings->mInputChannel);
+    mUPDI->AdvanceToNextEdge();
+    if (mUPDI->GetBitState() != BIT_LOW) return false; // 3
+            mResults->AddMarker(
+            mUPDI->GetSampleNumber(),
+            AnalyzerResults::Dot,
+            mSettings->mInputChannel);
+    mUPDI->AdvanceToNextEdge();
+    if (mUPDI->GetBitState() != BIT_HIGH) return false; // 4
+            mResults->AddMarker(
+            mUPDI->GetSampleNumber(),
+            AnalyzerResults::Dot,
+            mSettings->mInputChannel);
+    mUPDI->AdvanceToNextEdge();
+    if (mUPDI->GetBitState() != BIT_LOW) return false; // 5
+            mResults->AddMarker(
+            mUPDI->GetSampleNumber(),
+            AnalyzerResults::Dot,
+            mSettings->mInputChannel);
+    mUPDI->AdvanceToNextEdge();
+    if (mUPDI->GetBitState() != BIT_HIGH) return false; // 6
+            mResults->AddMarker(
+            mUPDI->GetSampleNumber(),
+            AnalyzerResults::Dot,
+            mSettings->mInputChannel);
+    mUPDI->AdvanceToNextEdge();
+    if (mUPDI->GetBitState() != BIT_LOW) return false;  // 7
+            mResults->AddMarker(
+            mUPDI->GetSampleNumber(),
+            AnalyzerResults::Dot,
+            mSettings->mInputChannel);
+    mUPDI->AdvanceToNextEdge();
+    if (mUPDI->GetBitState() != BIT_LOW) return false;  // Parity
+            mResults->AddMarker(
+            mUPDI->GetSampleNumber(),
+            AnalyzerResults::Square,
+            mSettings->mInputChannel);
+    mUPDI->AdvanceToNextEdge();
+    if (mUPDI->GetBitState() != BIT_HIGH) return false; // Stop
+            mResults->AddMarker(
+            mUPDI->GetSampleNumber(),
+            AnalyzerResults::Square,
+            mSettings->mInputChannel);
+    mUPDI->AdvanceToNextEdge();
+    if (mUPDI->GetBitState() != BIT_HIGH) return false; // Stop
+            mResults->AddMarker(
+            mUPDI->GetSampleNumber(),
+            AnalyzerResults::Square,
+            mSettings->mInputChannel);
+    mUPDI->AdvanceToNextEdge();
+
+    // After all 12 bits we can get the best approximation of rate
+    bit_width = (mUPDI->GetSampleNumber()-sync_start)/12;
+    return true;
+}
+
 UPDIAnalyzer::UPDIAnalyzer() : Analyzer2(), mSettings( new UPDIAnalyzerSettings() )
 {
     SetAnalyzerSettings( mSettings.get() );
@@ -26,40 +198,23 @@ void UPDIAnalyzer::SetupResults()
     mResults->AddChannelBubblesWillAppearOn( mSettings->mInputChannel );
 }
 
-bool UPDIAnalyzer::NextBit(BitState expected_bit) {
-    // From where we are
-    U64 last_transition = mUPDI->GetSampleNumber();
-    // Go forward to the middle of the the anticipated next bit
-    mUPDI->Advance(bit_width/2);
-    // Get that bit value
-    BitState this_bit = mUPDI->GetBitState();
-    mUPDI->Advance(bit_width/2);
-    // Is it a match?
-    return (this_bit == expected_bit);
-}
-
-enum UPDIState
+void UPDIAnalyzer::Update() 
 {
-    STARTUP,
-    IDLE,
-    DATA,
-    ERROR
-};
+    mResults->CommitResults();
+    ReportProgress( mUPDI->GetSampleNumber() );
+    CheckIfThreadShouldExit();
+}
 
 void UPDIAnalyzer::WorkerThread()
 {
+
     mUPDI = GetAnalyzerChannelData( mSettings->mInputChannel );
-    BitState bit;
-
-    U64 last_transition;
+    U64 bit_width=0;
     U64 this_transition;
-    U64 next_transition;
     U64 data_start;
-    U64 sync_start;
+    bool is_error = false;
+    U8 even_count = 0;
 
-    UPDIState state = STARTUP;
-
-    U32 this_width;
     U8 data;
 
     // Starting low probably means sampling but no activity yet, advance to first HIGH
@@ -67,143 +222,85 @@ void UPDIAnalyzer::WorkerThread()
         mUPDI->AdvanceToNextEdge();
     } 
 
-    // Loop forever
+    // Loop forever (Starting HIGH)
     for( ;; )
     {
-        switch( state )
-        {
-            case STARTUP:
+        U64 loop_start = mUPDI->GetSampleNumber();
+        mResults->AddMarker(mUPDI->GetSampleNumber(),AnalyzerResults::Start, mSettings->mInputChannel);
 
-                // We should always begin checking on LOW of a new potential start bit
-                if (mUPDI->GetBitState()==BIT_HIGH) {
-                    mUPDI->AdvanceToNextEdge();
-                }
+        // HIGH = Idle
+        if (mUPDI->GetBitState() == BIT_HIGH) {
+            // This is an idle state, move to the next transition (LOW state)
+            mUPDI->AdvanceToNextEdge();
+            Notate(loop_start, mUPDI->GetSampleNumber(), "IDLE", FrameFlags::IDLE); 
+        } 
+    
+        // Low, Presume Start Bit
+        this_transition = mUPDI->GetSampleNumber();
 
-                // Currently at beginning (LOW) of bit
-                last_transition = sync_start= mUPDI->GetSampleNumber();
-
-                // Look ahead to end of bit, which will be HIGH
-                next_transition = mUPDI->GetSampleOfNextEdge();
-                
-                // Calculate the Bit Width
-                bit_width = next_transition - last_transition;;
-                
-                // Go to the end of the Bit
-                mUPDI->AdvanceToNextEdge();
-
-                // First bit was START Bit (LOW)  // Start
-                if (!NextBit(BIT_HIGH)) break;    // 0
-                if (!NextBit(BIT_LOW)) break;    // 1 
-                if (!NextBit(BIT_HIGH))  break;    // 2
-                if (!NextBit(BIT_LOW)) break;    // 3
-                if (!NextBit(BIT_HIGH))  break;    // 4
-                if (!NextBit(BIT_LOW)) break;    // 5
-                if (!NextBit(BIT_HIGH))  break;    // 6
-                if (!NextBit(BIT_LOW)) break;    // 7
-                if (!NextBit(BIT_LOW))  break;    // Parity
-                if (!NextBit(BIT_HIGH)) break;    // Stop
-                if (!NextBit(BIT_HIGH)) break;    // Stop
-
-                this_transition = mUPDI->GetSampleNumber();
-
-                // Calculate bit rate using all bits to get better average
-                bit_width = (this_transition - sync_start)/12;
-                Notate(sync_start, this_transition - (bit_width/2), 0x55, "sync");
-                state = IDLE;
-                break;
-
-            case IDLE:
-
-                // Next is either Data, Break, SYNC, ACK or Idle
-                this_transition = mUPDI->GetSampleNumber();
-
-                // If we are HIGH it is an idle condition
-                if (mUPDI->GetBitState()== BIT_HIGH) {
-                    // This is an idle state, move to the next transition
-                    last_transition = this_transition;
-                    mUPDI->AdvanceToNextEdge();
-                    this_transition = mUPDI->GetSampleNumber();
-                }
-
-                // Low is either Start Bit (Data, Sync or Ack) or else Break
-                this_width = mUPDI->GetSampleOfNextEdge() - this_transition;
-                if (this_width > (bit_width * 12.5)) {
-                    // BREAK detected, reset
-                    mUPDI->AdvanceToNextEdge();
-                    Notate(this_transition, mUPDI->GetSampleNumber(), 0xFF, "BREAK");
-                    state = STARTUP;
-                    break;
-                } else if (this_width < (bit_width * .9)) {
-                    // This bit is too small to be at our current rate
-                    // We might have a bit rate change, need to re-sync
-                    //mResults->AddMarker(mUPDI->GetSampleNumber()+1,AnalyzerResults::One,mSettings->mInputChannel);
-                    state = STARTUP;
-                    break;
-                } 
-
-                // Looks like data
-                state = DATA;
-                break;
-                
-            case DATA:
-                
-                // Expect Start bit
-                data_start = mUPDI->GetSampleNumber();
-                if (!NextBit(BIT_LOW)) {state=ERROR; break;}
-
-                // Advance for middle of bits
-                mUPDI->Advance(bit_width/2);
-                // Get 8 data bits
-                data = 0;
-                for (int b=0; b<8; b++) {
-                    //mResults->AddMarker(mUPDI->GetSampleNumber(),AnalyzerResults::Dot,mSettings->mInputChannel);
-                    if (mUPDI->GetBitState())                     
-                        data += 1<<b;
-                    mUPDI->Advance(bit_width);
-                }
-                // Parity -- Ignore it
-                //mResults->AddMarker(mUPDI->GetSampleNumber(),AnalyzerResults::Square,mSettings->mInputChannel);
-                mUPDI->Advance(bit_width/2);
-
-                // 2 Stop Bits
-                if (!NextBit(BIT_HIGH)) {state=ERROR; break;}
-                if (!NextBit(BIT_HIGH)) {state=ERROR; break;}    
-
-                // Notate the value
-                Notate(data_start, mUPDI->GetSampleNumber()-(bit_width/2), data, "data");
-
-                state=IDLE;
-                break;
-
-            case ERROR:
-                Notate(data_start+1, mUPDI->GetSampleNumber()-1, 0x00, "ERROR");
-                state = STARTUP;
-                break;
+        // Look for data/sync
+        int byte = isData();
+        if (byte != -1) {
+            Notate(this_transition, mUPDI->GetSampleNumber(), "DATA", FrameFlags::DATA, (U8)byte);
         }
 
-        mResults->CommitResults();
-        ReportProgress( this_transition );
-        CheckIfThreadShouldExit();
+            // // Is this a break?
+            // if ((bit_width>0) && (mUPDI->GetSampleOfNextEdge() - mUPDI->GetSampleNumber() > (bit_width * 12.5))) {
+            //     // BREAK detected, reset
+            //     mUPDI->AdvanceToNextEdge();
+            //     Notate(mUPDI->GetSampleNumber(), mUPDI->GetSampleNumber(), "BREAK" , FrameFlags::BREAK);
+            //     Update();
+            //     continue;
+            // } 
+
+            // Must be a start bit
+            // mResults->AddMarker(mUPDI->GetSampleNumber(),AnalyzerResults::Start,mSettings->mInputChannel);
+
+            // Look ahead to next bit to calculate possible bit width change
+            // Note:  One bit can vary, but two is relatively precise.
+            
+            // // Look ahead at the next bit width, for a width change
+            // U64 this_width = (mUPDI->GetSampleOfNextEdge() - this_transition)/2;
+
+            // if ((bit_width == 0) || (this_width < (bit_width * .9))) {
+            //     // This bit is too small to be a start bit at our current rate
+            //     // Recalculate projected rate
+            //     bit_width = this_width;
+            //     Notate(this_transition, mUPDI->GetSampleNumber(), "RATE", FrameFlags::RATE);
+            // } else {
+            //     // Regular Start Big
+            //     Notate(this_transition, mUPDI->GetSampleNumber(), "START", FrameFlags::START);
+            // }
+
+            
+            // // Handle an error, drop the data
+            // if (!is_error) {
+            //     Notate(data_start, mUPDI->GetSampleNumber(), "DATA", FrameFlags::DATA, data);
+            // } else {
+            //     Notate(data_start, mUPDI->GetSampleNumber(), "ERROR", FrameFlags::ERROR, data);
+            // }
+        
+        Update();
     }
 }
 
 
-void UPDIAnalyzer::Notate(U64 start, U64 end, U64 value, const char* note) {
-        
+void UPDIAnalyzer::Notate(U64 start, U64 end,const char* note, FrameFlags flag, int value) {
+    
     Frame frame;
     frame.mStartingSampleInclusive = static_cast<S64>( start+1);
     frame.mEndingSampleInclusive = static_cast<S64>( end-1);
-    frame.mData1 = value;
-    frame.mFlags = 0;
+    frame.mData1 = (U64)value;
+    frame.mFlags = flag;
     mResults->AddFrame( frame );
 
     FrameV2 frameV2;
-    frameV2.AddByte( "data", value );
+    if (value != -1)
+        frameV2.AddByte( "data", value );
     mResults->AddFrameV2( frameV2, note, start+1, end-1 );
     mResults->CommitResults();
     
 }
-
 
 bool UPDIAnalyzer::NeedsRerun()
 {

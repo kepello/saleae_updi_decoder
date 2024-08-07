@@ -1,0 +1,13 @@
+{
+  "name": "UPDI Protocol Analyzer (from BITS)",
+  "apiVersion": "1.0.0",
+  "author": "Carl Lance",
+  "version": "0.0.1",
+  "description": "Microchip UPDI Protocol Analyzer, Requires BITS low level analyzer",
+  "extensions": {
+    "UPDI (from BITS)": {
+      "type": "HighLevelAnalyzer",
+      "entryPoint": "HighLevelAnalyzer.Hla"
+    }
+  }
+}

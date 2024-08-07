@@ -1,19 +1,19 @@
-#include "UPDIAnalyzerResults.h"
+#include "ll_results.h"
 #include <AnalyzerHelpers.h>
-#include "UPDIAnalyzer.h"
-#include "UPDIAnalyzerSettings.h"
+#include "ll_analyzer.h"
+#include "ll_settings.h"
 #include <iostream>
 #include <sstream>
 
 
-UPDIAnalyzerResults::UPDIAnalyzerResults( UPDIAnalyzer* analyzer, UPDIAnalyzerSettings* settings )
+ll_results::ll_results( ll_analyzer* analyzer, ll_settings* settings )
     : AnalyzerResults(), mSettings( settings ), mAnalyzer( analyzer )
 {
 }
 
-UPDIAnalyzerResults::~UPDIAnalyzerResults() = default;
+ll_results::~ll_results() = default;
 
-void UPDIAnalyzerResults::GenerateBubbleText( U64 frame_index, Channel& /*channel*/,
+void ll_results::GenerateBubbleText( U64 frame_index, Channel& /*channel*/,
                                               DisplayBase display_base ) // unreferenced vars commented out to remove warnings.
 {
     ClearResultStrings();
@@ -22,24 +22,11 @@ void UPDIAnalyzerResults::GenerateBubbleText( U64 frame_index, Channel& /*channe
 
     char number_str[ 128 ];
     AnalyzerHelpers::GetNumberString( frame.mData1, display_base, bits_per_transfer, number_str, 128 );
-    if (frame.mFlags == FrameFlags::IDLE) 
-        AddResultString("IDLE");
-    else if (frame.mFlags == FrameFlags::START) 
-        AddResultString("START");
-    else if (frame.mFlags == FrameFlags::RATE) 
-        AddResultString("RATE ");
-    else if (frame.mFlags == FrameFlags::BREAK) 
-        AddResultString("BREAK");
-    else if (frame.mFlags == FrameFlags::SYNC)
-        AddResultString("SYNC");
-    else if (frame.mFlags == FrameFlags::ACK)
-        AddResultString("ACK");
-    else 
-        AddResultString( number_str );
+    AddResultString( number_str );
     
 }
 
-void UPDIAnalyzerResults::GenerateExportFile( const char* file, DisplayBase display_base, U32 /*export_type_user_id*/ )
+void ll_results::GenerateExportFile( const char* file, DisplayBase display_base, U32 /*export_type_user_id*/ )
 {
     // export_type_user_id is only important if we have more than one export type.
     std::stringstream ss;
@@ -82,7 +69,7 @@ void UPDIAnalyzerResults::GenerateExportFile( const char* file, DisplayBase disp
     AnalyzerHelpers::EndFile( f );
 }
 
-void UPDIAnalyzerResults::GenerateFrameTabularText( U64 frame_index, DisplayBase display_base )
+void ll_results::GenerateFrameTabularText( U64 frame_index, DisplayBase display_base )
 {
     ClearTabularText();
     Frame frame = GetFrame( frame_index );
@@ -93,14 +80,14 @@ void UPDIAnalyzerResults::GenerateFrameTabularText( U64 frame_index, DisplayBase
     AddTabularText( number_str );
 }
 
-void UPDIAnalyzerResults::GeneratePacketTabularText( U64 /*packet_id*/,
+void ll_results::GeneratePacketTabularText( U64 /*packet_id*/,
                                                      DisplayBase /*display_base*/ ) // unreferenced vars commented out to remove warnings.
 {
     ClearResultStrings();
     AddResultString( "not supported" );
 }
 
-void UPDIAnalyzerResults::GenerateTransactionTabularText(
+void ll_results::GenerateTransactionTabularText(
     U64 /*transaction_id*/, DisplayBase /*display_base*/ ) // unreferenced vars commented out to remove warnings.
 {
     ClearResultStrings();

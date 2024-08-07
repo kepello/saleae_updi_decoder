@@ -1,26 +1,20 @@
-#ifndef UPDI_ANALYZER_H
-#define UPDI_ANALYZER_H
+#ifndef ANALYZER_H
+#define ANALYZER_H
 
-//#define LOGIC2
+#ifndef LOGIC2
+  #define LOGIC2
+#endif
 
 #include <Analyzer.h>
-#include "UPDIAnalyzerResults.h"
+#include "ll_results.h"
 
-
-enum FrameFlags {
-    IDLE, BREAK, SYNC, DATA, ACK, ERROR, START, RATE
-};
-
-
-
-class UPDIAnalyzerSettings;
-class UPDIAnalyzer : public Analyzer2
+class settings;
+class ll_analyzer : public Analyzer2
 {
   public:
-    UPDIAnalyzer();
-    bool isSync();
-    int isData();
-    virtual ~UPDIAnalyzer();
+    ll_analyzer();
+
+    virtual ~ll_analyzer();
     virtual void SetupResults();
     virtual void WorkerThread();
 
@@ -29,8 +23,6 @@ class UPDIAnalyzer : public Analyzer2
 
     virtual const char* GetAnalyzerName() const;
     virtual bool NeedsRerun();
-    virtual void Notate(U64 start, U64 end, const char* note, FrameFlags flag, int value=-1 );
-    virtual void Update();
 
 #pragma warning( push )
 #pragma warning(                                                                                                                           \
@@ -40,13 +32,9 @@ class UPDIAnalyzer : public Analyzer2
     void ComputeSampleOffsets();
 
   protected: // vars
-    std::unique_ptr<UPDIAnalyzerSettings> mSettings;
-    std::unique_ptr<UPDIAnalyzerResults> mResults;
-    AnalyzerChannelData* mUPDI;
-    //UPDISimulationDataGenerator mSimulationDataGenerator;
-    //bool mSimulationInitialized;
-
-    U32 bit_width = 0;
+    std::unique_ptr<ll_settings> mSettings;
+    std::unique_ptr<ll_results> mResults;
+    AnalyzerChannelData* mBits;
 
 #pragma warning( pop )
 };
@@ -55,4 +43,4 @@ extern "C" ANALYZER_EXPORT const char* __cdecl GetAnalyzerName();
 extern "C" ANALYZER_EXPORT Analyzer* __cdecl CreateAnalyzer();
 extern "C" ANALYZER_EXPORT void __cdecl DestroyAnalyzer( Analyzer* analyzer );
 
-#endif // UPDI_ANALYZER_H
+#endif // ANALYZER_H
