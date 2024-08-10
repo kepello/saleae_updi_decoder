@@ -20,10 +20,7 @@ void SerialAnalyzer::ComputeSampleOffsets()
 
     mSampleOffsets.clear();
 
-    U32 num_bits = mSettings->mBitsPerTransfer;
-
-    if( mSettings->mSerialMode != SerialAnalyzerEnums::Normal )
-        num_bits++;
+    U32 num_bits = 8;
 
     mSampleOffsets.push_back( clock_generator.AdvanceByHalfPeriod( 1.5 ) ); // point to the center of the 1st bit (past the start bit)
     num_bits--;                                                             // we just added the first bit.
@@ -33,8 +30,7 @@ void SerialAnalyzer::ComputeSampleOffsets()
         mSampleOffsets.push_back( clock_generator.AdvanceByHalfPeriod() );
     }
 
-    if( mSettings->mParity != AnalyzerEnums::None )
-        mParityBitOffset = clock_generator.AdvanceByHalfPeriod();
+    mParityBitOffset = clock_generator.AdvanceByHalfPeriod();
 
     // to check for framing errors, we also want to check
     // 1/2 bit after the beginning of the stop bit
@@ -42,7 +38,7 @@ void SerialAnalyzer::ComputeSampleOffsets()
         1.0 ); // i.e. moving from the center of the last data bit (where we left off) to 1/2 period into the stop bit
 
     // and 1/2 bit before end of the stop bit period
-    mEndOfStopBitOffset = clock_generator.AdvanceByHalfPeriod( mSettings->mStopBits - 1.0 ); // if stopBits == 1.0, this will be 0
+    mEndOfStopBitOffset = clock_generator.AdvanceByHalfPeriod(1); // stop bits less one
 }
 
 
@@ -62,23 +58,13 @@ void SerialAnalyzer::WorkerThread()
     mSampleRateHz = GetSampleRate();
     ComputeSampleOffsets();
 
-    U32 bits_per_transfer = mSettings->mBitsPerTransfer;
-    if( mSettings->mSerialMode != SerialAnalyzerEnums::Normal )
-        bits_per_transfer++;
+    U32 bits_per_transfer = 8;
 
     // used for HLA byte count, this should not include an extra bit for MP/MDB
-    const U32 bytes_per_transfer = ( mSettings->mBitsPerTransfer + 7 ) / 8;
+    const U32 bytes_per_transfer = ( 8 + 7 ) / 8;
 
-    if( mSettings->mInverted == false )
-    {
-        mBitHigh = BIT_HIGH;
-        mBitLow = BIT_LOW;
-    }
-    else
-    {
-        mBitHigh = BIT_LOW;
-        mBitLow = BIT_HIGH;
-    }
+    mBitHigh = BIT_HIGH;
+    mBitLow = BIT_LOW;
 
     U64 bit_mask = 0;
     U64 mask = 0x1ULL;
@@ -109,7 +95,7 @@ void SerialAnalyzer::WorkerThread()
         bool mp_is_address = false;
 
         DataBuilder data_builder;
-        data_builder.Reset( &data, mSettings->mShiftOrder, bits_per_transfer );
+        data_builder.Reset( &data, AnalyzerEnums::LsbFirst , bits_per_transfer );
         U64 marker_location = frame_starting_sample;
 
         for( U32 i = 0; i < bits_per_transfer; i++ )
@@ -121,35 +107,12 @@ void SerialAnalyzer::WorkerThread()
             mResults->AddMarker( marker_location, AnalyzerResults::Dot, mSettings->mInputChannel );
         }
 
-        if( mSettings->mInverted == true )
-            data = ( ~data ) & bit_mask;
-
-        if( mSettings->mSerialMode != SerialAnalyzerEnums::Normal )
-        {
-            // extract the MSB
-            U64 msb = data >> ( bits_per_transfer - 1 );
-            msb &= 0x1;
-            if( mSettings->mSerialMode == SerialAnalyzerEnums::MpModeMsbOneMeansAddress )
-            {
-                mp_is_address = msb == 0x1;
-            }
-            else if( mSettings->mSerialMode == SerialAnalyzerEnums::MpModeMsbZeroMeansAddress )
-            {
-                mp_is_address = msb == 0x0;
-            }
-            // now remove the msb.
-            data &= ( bit_mask >> 1 );
-        }
-
         parity_error = false;
 
-        if( mSettings->mParity != AnalyzerEnums::None )
-        {
+
             mSerial->Advance( mParityBitOffset );
             bool is_even = AnalyzerHelpers::IsEven( AnalyzerHelpers::GetOnesCount( data ) );
 
-            if( mSettings->mParity == AnalyzerEnums::Even )
-            {
                 if( is_even == true )
                 {
                     if( mSerial->GetBitState() != mBitLow ) // we expect a low bit, to keep the parity even.
@@ -160,24 +123,10 @@ void SerialAnalyzer::WorkerThread()
                     if( mSerial->GetBitState() != mBitHigh ) // we expect a high bit, to force parity even.
                         parity_error = true;
                 }
-            }
-            else // if( mSettings->mParity == AnalyzerEnums::Odd )
-            {
-                if( is_even == false )
-                {
-                    if( mSerial->GetBitState() != mBitLow ) // we expect a low bit, to keep the parity odd.
-                        parity_error = true;
-                }
-                else
-                {
-                    if( mSerial->GetBitState() != mBitHigh ) // we expect a high bit, to force parity odd.
-                        parity_error = true;
-                }
-            }
 
             marker_location += mParityBitOffset;
             mResults->AddMarker( marker_location, AnalyzerResults::Square, mSettings->mInputChannel );
-        }
+        
 
         // now we must determine if there is a framing error.
         framing_error = false;
@@ -247,11 +196,6 @@ void SerialAnalyzer::WorkerThread()
             frameV2.AddString( "error", "framing" );
         }
 
-        if( mSettings->mSerialMode != SerialAnalyzerEnums::Normal )
-        {
-            frameV2.AddBoolean( "address", mp_is_address );
-        }
-
         mResults->AddFrameV2( frameV2, "data", frame_starting_sample, mSerial->GetSampleNumber() );
 
         mResults->CommitResults();
@@ -269,43 +213,7 @@ void SerialAnalyzer::WorkerThread()
 
 bool SerialAnalyzer::NeedsRerun()
 {
-    if( mSettings->mUseAutobaud == false )
-        return false;
-
-    // ok, lets see if we should change the bit rate, base on mShortestActivePulse
-
-    U64 shortest_pulse = mSerial->GetMinimumPulseWidthSoFar();
-
-    if( shortest_pulse == 0 )
-        AnalyzerHelpers::Assert( "Alg problem, shortest_pulse was 0" );
-
-    U32 computed_bit_rate = U32( double( mSampleRateHz ) / double( shortest_pulse ) );
-
-    if( computed_bit_rate > mSampleRateHz )
-        AnalyzerHelpers::Assert( "Alg problem, computed_bit_rate is higher than sample rate" ); // just checking the obvious...
-
-    if( computed_bit_rate > ( mSampleRateHz / 4 ) )
-        return false; // the baud rate is too fast.
-    if( computed_bit_rate == 0 )
-    {
-        // bad result, this is not good data, don't bother to re-run.
-        return false;
-    }
-
-    U32 specified_bit_rate = mSettings->mBitRate;
-
-    double error = double( AnalyzerHelpers::Diff32( computed_bit_rate, specified_bit_rate ) ) / double( specified_bit_rate );
-
-    if( error > 0.1 )
-    {
-        mSettings->mBitRate = computed_bit_rate;
-        mSettings->UpdateInterfacesFromSettings();
-        return true;
-    }
-    else
-    {
-        return false;
-    }
+    return false;
 }
 
 U32 SerialAnalyzer::GenerateSimulationData( U64 minimum_sample_index, U32 device_sample_rate,

@@ -14,16 +14,8 @@ void SerialSimulationDataGenerator::Initialize( U32 simulation_sample_rate, Seri
     mSerialSimulationData.SetChannel( mSettings->mInputChannel );
     mSerialSimulationData.SetSampleRate( simulation_sample_rate );
 
-    if( mSettings->mInverted == false )
-    {
-        mBitLow = BIT_LOW;
-        mBitHigh = BIT_HIGH;
-    }
-    else
-    {
-        mBitLow = BIT_HIGH;
-        mBitHigh = BIT_LOW;
-    }
+    mBitLow = BIT_LOW;
+    mBitHigh = BIT_HIGH;
 
     mSerialSimulationData.SetInitialBitState( mBitHigh );
     mSerialSimulationData.Advance( mClockGenerator.AdvanceByHalfPeriod( 10.0 ) ); // insert 10 bit-periods of idle
@@ -34,18 +26,13 @@ void SerialSimulationDataGenerator::Initialize( U32 simulation_sample_rate, Seri
     mMpModeDataMask = 0;
     mNumBitsMask = 0;
 
-    U32 num_bits = mSettings->mBitsPerTransfer;
+    U32 num_bits = 8;
     for( U32 i = 0; i < num_bits; i++ )
     {
         mNumBitsMask <<= 1;
         mNumBitsMask |= 0x1;
     }
 
-    if( mSettings->mSerialMode == SerialAnalyzerEnums::MpModeMsbOneMeansAddress )
-        mMpModeAddressMask = 0x1ull << ( mSettings->mBitsPerTransfer );
-
-    if( mSettings->mSerialMode == SerialAnalyzerEnums::MpModeMsbZeroMeansAddress )
-        mMpModeDataMask = 0x1ull << ( mSettings->mBitsPerTransfer );
 }
 
 U32 SerialSimulationDataGenerator::GenerateSimulationData( U64 largest_sample_requested, U32 sample_rate,
@@ -56,36 +43,11 @@ U32 SerialSimulationDataGenerator::GenerateSimulationData( U64 largest_sample_re
 
     while( mSerialSimulationData.GetCurrentSampleNumber() < adjusted_largest_sample_requested )
     {
-        if( mSettings->mSerialMode == SerialAnalyzerEnums::Normal )
-        {
+
             CreateSerialByte( mValue++ );
 
             mSerialSimulationData.Advance( mClockGenerator.AdvanceByHalfPeriod( 10.0 ) ); // insert 10 bit-periods of idle
-        }
-        else
-        {
-            U64 address = 0x1 | mMpModeAddressMask;
-            CreateSerialByte( address );
-
-            for( U32 i = 0; i < 4; i++ )
-            {
-                mSerialSimulationData.Advance( mClockGenerator.AdvanceByHalfPeriod( 2.0 ) ); // insert 2 bit-periods of idle
-                CreateSerialByte( ( mValue++ & mNumBitsMask ) | mMpModeDataMask );
-            }
-
-            mSerialSimulationData.Advance( mClockGenerator.AdvanceByHalfPeriod( 20.0 ) ); // insert 20 bit-periods of idle
-
-            address = 0x2 | mMpModeAddressMask;
-            CreateSerialByte( address );
-
-            for( U32 i = 0; i < 4; i++ )
-            {
-                mSerialSimulationData.Advance( mClockGenerator.AdvanceByHalfPeriod( 2.0 ) ); // insert 2 bit-periods of idle
-                CreateSerialByte( ( mValue++ & mNumBitsMask ) | mMpModeDataMask );
-            }
-
-            mSerialSimulationData.Advance( mClockGenerator.AdvanceByHalfPeriod( 20.0 ) ); // insert 20 bit-periods of idle
-        }
+        
     }
 
     *simulation_channels = &mSerialSimulationData;
@@ -101,14 +63,9 @@ void SerialSimulationDataGenerator::CreateSerialByte( U64 value )
     mSerialSimulationData.Transition();                                     // low-going edge for start bit
     mSerialSimulationData.Advance( mClockGenerator.AdvanceByHalfPeriod() ); // add start bit time
 
-    if( mSettings->mInverted == true )
-        value = ~value;
+    U32 num_bits = 8;
 
-    U32 num_bits = mSettings->mBitsPerTransfer;
-    if( mSettings->mSerialMode != SerialAnalyzerEnums::Normal )
-        num_bits++;
-
-    BitExtractor bit_extractor( value, mSettings->mShiftOrder, num_bits );
+    BitExtractor bit_extractor( value, AnalyzerEnums::LsbFirst , num_bits );
 
     for( U32 i = 0; i < num_bits; i++ )
     {
@@ -116,27 +73,17 @@ void SerialSimulationDataGenerator::CreateSerialByte( U64 value )
         mSerialSimulationData.Advance( mClockGenerator.AdvanceByHalfPeriod() );
     }
 
-    if( mSettings->mParity == AnalyzerEnums::Even )
-    {
+
         if( AnalyzerHelpers::IsEven( AnalyzerHelpers::GetOnesCount( value ) ) == true )
             mSerialSimulationData.TransitionIfNeeded( mBitLow ); // we want to add a zero bit
         else
             mSerialSimulationData.TransitionIfNeeded( mBitHigh ); // we want to add a one bit
 
         mSerialSimulationData.Advance( mClockGenerator.AdvanceByHalfPeriod() );
-    }
-    else if( mSettings->mParity == AnalyzerEnums::Odd )
-    {
-        if( AnalyzerHelpers::IsOdd( AnalyzerHelpers::GetOnesCount( value ) ) == true )
-            mSerialSimulationData.TransitionIfNeeded( mBitLow ); // we want to add a zero bit
-        else
-            mSerialSimulationData.TransitionIfNeeded( mBitHigh );
-
-        mSerialSimulationData.Advance( mClockGenerator.AdvanceByHalfPeriod() );
-    }
+    
 
     mSerialSimulationData.TransitionIfNeeded( mBitHigh ); // we need to end high
 
     // let's pad the end a bit for the stop bit:
-    mSerialSimulationData.Advance( mClockGenerator.AdvanceByHalfPeriod( mSettings->mStopBits ) );
+    mSerialSimulationData.Advance( mClockGenerator.AdvanceByHalfPeriod( 2 ) );
 }

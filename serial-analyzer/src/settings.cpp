@@ -8,14 +8,7 @@
 
 SerialAnalyzerSettings::SerialAnalyzerSettings()
     : mInputChannel( UNDEFINED_CHANNEL ),
-      mBitRate( 100000 ),
-      mBitsPerTransfer( 8 ),
-      mStopBits( 2.0 ),
-      mParity( AnalyzerEnums::Even ),
-      mShiftOrder( AnalyzerEnums::LsbFirst ),
-      mInverted( false ),
-      mUseAutobaud( false ),
-      mSerialMode( SerialAnalyzerEnums::Normal )
+      mBitRate( 100000 )
 {
     mInputChannelInterface.reset( new AnalyzerSettingInterfaceChannel() );
     mInputChannelInterface->SetTitleAndTooltip( "Input Channel", LL_ANALYZER_NAME );
