@@ -2,18 +2,18 @@
 #include "settings.h"
 #include <AnalyzerChannelData.h>
 
-SerialAnalyzer::SerialAnalyzer() : Analyzer2(), mSettings( new SerialAnalyzerSettings() ), mSimulationInitialized( false )
+updi_analyzer::updi_analyzer() : Analyzer2(), mSettings( new SerialAnalyzerSettings() ), mSimulationInitialized( false )
 {
     SetAnalyzerSettings( mSettings.get() );
     UseFrameV2();
 }
 
-SerialAnalyzer::~SerialAnalyzer()
+updi_analyzer::~updi_analyzer()
 {
     KillThread();
 }
 
-void SerialAnalyzer::ComputeSampleOffsets()
+void updi_analyzer::ComputeSampleOffsets()
 {
     ClockGenerator clock_generator;
     clock_generator.Init( mSettings->mBitRate, mSampleRateHz );
@@ -38,30 +38,31 @@ void SerialAnalyzer::ComputeSampleOffsets()
         1.0 ); // i.e. moving from the center of the last data bit (where we left off) to 1/2 period into the stop bit
 
     // and 1/2 bit before end of the stop bit period
-    mEndOfStopBitOffset = clock_generator.AdvanceByHalfPeriod(1); // stop bits less one
+    mEndOfStopBitOffset = clock_generator.AdvanceByHalfPeriod( 1 ); // stop bits less one
 }
 
-
-void SerialAnalyzer::SetupResults()
+void updi_analyzer::SetupResults()
 {
     // Unlike the worker thread, this function is called from the GUI thread
     // we need to reset the Results object here because it is exposed for direct access by the GUI, and it can't be deleted from the
     // WorkerThread
 
-    mResults.reset( new SerialAnalyzerResults( this, mSettings.get() ) );
+    mResults.reset( new updi_results( this, mSettings.get() ) );
     SetAnalyzerResults( mResults.get() );
     mResults->AddChannelBubblesWillAppearOn( mSettings->mInputChannel );
 }
 
-void SerialAnalyzer::WorkerThread()
+void updi_analyzer::WorkerThread()
 {
+    // We don't know rate yet, until we get our first SYNC
+
     mSampleRateHz = GetSampleRate();
     ComputeSampleOffsets();
 
     U32 bits_per_transfer = 8;
 
     // used for HLA byte count, this should not include an extra bit for MP/MDB
-    const U32 bytes_per_transfer = ( 8 + 7 ) / 8;
+    const U32 bytes_per_transfer = 1;
 
     mBitHigh = BIT_HIGH;
     mBitLow = BIT_LOW;
@@ -75,9 +76,9 @@ void SerialAnalyzer::WorkerThread()
     }
 
     mSerial = GetAnalyzerChannelData( mSettings->mInputChannel );
-    mSerial->TrackMinimumPulseWidth();
 
     if( mSerial->GetBitState() == mBitLow )
+
         mSerial->AdvanceToNextEdge();
 
     for( ;; )
@@ -92,10 +93,9 @@ void SerialAnalyzer::WorkerThread()
         U64 data = 0;
         bool parity_error = false;
         bool framing_error = false;
-        bool mp_is_address = false;
 
         DataBuilder data_builder;
-        data_builder.Reset( &data, AnalyzerEnums::LsbFirst , bits_per_transfer );
+        data_builder.Reset( &data, AnalyzerEnums::LsbFirst, bits_per_transfer );
         U64 marker_location = frame_starting_sample;
 
         for( U32 i = 0; i < bits_per_transfer; i++ )
@@ -110,23 +110,23 @@ void SerialAnalyzer::WorkerThread()
         parity_error = false;
 
 
-            mSerial->Advance( mParityBitOffset );
-            bool is_even = AnalyzerHelpers::IsEven( AnalyzerHelpers::GetOnesCount( data ) );
+        mSerial->Advance( mParityBitOffset );
+        bool is_even = AnalyzerHelpers::IsEven( AnalyzerHelpers::GetOnesCount( data ) );
 
-                if( is_even == true )
-                {
-                    if( mSerial->GetBitState() != mBitLow ) // we expect a low bit, to keep the parity even.
-                        parity_error = true;
-                }
-                else
-                {
-                    if( mSerial->GetBitState() != mBitHigh ) // we expect a high bit, to force parity even.
-                        parity_error = true;
-                }
+        if( is_even == true )
+        {
+            if( mSerial->GetBitState() != mBitLow ) // we expect a low bit, to keep the parity even.
+                parity_error = true;
+        }
+        else
+        {
+            if( mSerial->GetBitState() != mBitHigh ) // we expect a high bit, to force parity even.
+                parity_error = true;
+        }
 
-            marker_location += mParityBitOffset;
-            mResults->AddMarker( marker_location, AnalyzerResults::Square, mSettings->mInputChannel );
-        
+        marker_location += mParityBitOffset;
+        mResults->AddMarker( marker_location, AnalyzerResults::Square, mSettings->mInputChannel );
+
 
         // now we must determine if there is a framing error.
         framing_error = false;
@@ -169,12 +169,6 @@ void SerialAnalyzer::WorkerThread()
         if( framing_error == true )
             frame.mFlags |= FRAMING_ERROR_FLAG | DISPLAY_AS_ERROR_FLAG;
 
-        if( mp_is_address == true )
-            frame.mFlags |= MP_MODE_ADDRESS_FLAG;
-
-        if( mp_is_address == true )
-            mResults->CommitPacketAndStartNewPacket();
-
         mResults->AddFrame( frame );
 
         FrameV2 frameV2;
@@ -211,13 +205,13 @@ void SerialAnalyzer::WorkerThread()
     }
 }
 
-bool SerialAnalyzer::NeedsRerun()
+bool updi_analyzer::NeedsRerun()
 {
     return false;
 }
 
-U32 SerialAnalyzer::GenerateSimulationData( U64 minimum_sample_index, U32 device_sample_rate,
-                                            SimulationChannelDescriptor** simulation_channels )
+U32 updi_analyzer::GenerateSimulationData( U64 minimum_sample_index, U32 device_sample_rate,
+                                           SimulationChannelDescriptor** simulation_channels )
 {
     if( mSimulationInitialized == false )
     {
@@ -228,12 +222,12 @@ U32 SerialAnalyzer::GenerateSimulationData( U64 minimum_sample_index, U32 device
     return mSimulationDataGenerator.GenerateSimulationData( minimum_sample_index, device_sample_rate, simulation_channels );
 }
 
-U32 SerialAnalyzer::GetMinimumSampleRateHz()
+U32 updi_analyzer::GetMinimumSampleRateHz()
 {
     return mSettings->mBitRate * 4;
 }
 
-const char* SerialAnalyzer::GetAnalyzerName() const
+const char* updi_analyzer::GetAnalyzerName() const
 {
     return LL_ANALYZER_NAME;
 }
@@ -245,7 +239,7 @@ const char* GetAnalyzerName()
 
 Analyzer* CreateAnalyzer()
 {
-    return new SerialAnalyzer();
+    return new updi_analyzer();
 }
 
 void DestroyAnalyzer( Analyzer* analyzer )

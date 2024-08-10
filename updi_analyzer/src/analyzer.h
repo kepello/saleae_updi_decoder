@@ -6,11 +6,12 @@
 
 
 class SerialAnalyzerSettings;
-class SerialAnalyzer : public Analyzer2
+
+class updi_analyzer : public Analyzer2
 {
   public:
-    SerialAnalyzer();
-    virtual ~SerialAnalyzer();
+    updi_analyzer();
+    virtual ~updi_analyzer();
     virtual void SetupResults();
     virtual void WorkerThread();
 
@@ -30,7 +31,7 @@ class SerialAnalyzer : public Analyzer2
 
   protected: // vars
     std::unique_ptr<SerialAnalyzerSettings> mSettings;
-    std::unique_ptr<SerialAnalyzerResults> mResults;
+    std::unique_ptr<updi_results> mResults;
     AnalyzerChannelData* mSerial;
 
     SerialSimulationDataGenerator mSimulationDataGenerator;

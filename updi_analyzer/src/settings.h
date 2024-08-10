@@ -9,6 +9,8 @@
 #define LL_ANALYZER_SETTINGS "UPDISerial"
 #define LL_CHANNEL_NAME "UPDI Serial"
 
+#define BITS_PER_TRANSFER 8
+
 namespace SerialAnalyzerEnums
 {
     enum Mode
