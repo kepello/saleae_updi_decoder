@@ -1,5 +1,4 @@
-#ifndef SERIAL_SIMULATION_DATA_GENERATOR
-#define SERIAL_SIMULATION_DATA_GENERATOR
+#pragma once
 
 #include <AnalyzerHelpers.h>
 
@@ -30,4 +29,3 @@ class SerialSimulationDataGenerator
     ClockGenerator mClockGenerator;
     SimulationChannelDescriptor mSerialSimulationData; // if we had more than one channel to simulate, they would need to be in an array
 };
-#endif // SERIAL_SIMULATION_DATA_GENERATOR

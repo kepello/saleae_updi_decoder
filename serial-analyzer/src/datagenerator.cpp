@@ -1,5 +1,5 @@
-#include "SerialSimulationDataGenerator.h"
-#include "SerialAnalyzerSettings.h"
+#include "datagenerator.h"
+#include "settings.h"
 
 SerialSimulationDataGenerator::SerialSimulationDataGenerator() = default;
 

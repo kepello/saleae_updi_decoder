@@ -1,9 +1,9 @@
-#ifndef SERIAL_ANALYZER_H
-#define SERIAL_ANALYZER_H
+#pragma once
 
 #include <Analyzer.h>
-#include "SerialAnalyzerResults.h"
-#include "SerialSimulationDataGenerator.h"
+#include "results.h"
+#include "datagenerator.h"
+
 
 class SerialAnalyzerSettings;
 class SerialAnalyzer : public Analyzer2
@@ -51,5 +51,3 @@ class SerialAnalyzer : public Analyzer2
 extern "C" ANALYZER_EXPORT const char* __cdecl GetAnalyzerName();
 extern "C" ANALYZER_EXPORT Analyzer* __cdecl CreateAnalyzer();
 extern "C" ANALYZER_EXPORT void __cdecl DestroyAnalyzer( Analyzer* analyzer );
-
-#endif // SERIAL_ANALYZER_H

@@ -1,7 +1,6 @@
-﻿#include "SerialAnalyzer.h"
-#include "SerialAnalyzerSettings.h"
+﻿#include "analyzer.h"
+#include "settings.h"
 #include <AnalyzerChannelData.h>
-
 
 SerialAnalyzer::SerialAnalyzer() : Analyzer2(), mSettings( new SerialAnalyzerSettings() ), mSimulationInitialized( false )
 {
@@ -328,12 +327,12 @@ U32 SerialAnalyzer::GetMinimumSampleRateHz()
 
 const char* SerialAnalyzer::GetAnalyzerName() const
 {
-    return "Async Serial";
+    return LL_ANALYZER_NAME;
 }
 
 const char* GetAnalyzerName()
 {
-    return "Async Serial";
+    return LL_ANALYZER_NAME;
 }
 
 Analyzer* CreateAnalyzer()

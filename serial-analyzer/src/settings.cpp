@@ -1,4 +1,4 @@
-#include "SerialAnalyzerSettings.h"
+#include "settings.h"
 
 #include <AnalyzerHelpers.h>
 #include <sstream>
@@ -141,7 +141,7 @@ bool SerialAnalyzerSettings::SetSettingsFromInterfaces()
     mSerialMode = SerialAnalyzerEnums::Mode( U32( mSerialModeInterface->GetNumber() ) );
 
     ClearChannels();
-    AddChannel( mInputChannel, "Serial", true );
+    AddChannel( mInputChannel, LL_CHANNEL_NAME, true );
 
     return true;
 }
@@ -188,7 +188,7 @@ void SerialAnalyzerSettings::LoadSettings( const char* settings )
         mSerialMode = mode;
 
     ClearChannels();
-    AddChannel( mInputChannel, "Serial", true );
+    AddChannel( mInputChannel, LL_CHANNEL_NAME, true );
 
     UpdateInterfacesFromSettings();
 }
@@ -197,7 +197,7 @@ const char* SerialAnalyzerSettings::SaveSettings()
 {
     SimpleArchive text_archive;
 
-    text_archive << "SaleaeAsyncSerialAnalyzer";
+    text_archive << LL_ANALYZER_SETTINGS;
     text_archive << mInputChannel;
     text_archive << mBitRate;
     text_archive << mBitsPerTransfer;

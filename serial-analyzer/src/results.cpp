@@ -1,7 +1,7 @@
-#include "SerialAnalyzerResults.h"
+#include "results.h"
 #include <AnalyzerHelpers.h>
-#include "SerialAnalyzer.h"
-#include "SerialAnalyzerSettings.h"
+#include "analyzer.h"
+#include "settings.h"
 #include <iostream>
 #include <sstream>
 

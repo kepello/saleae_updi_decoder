@@ -1,10 +1,13 @@
-#ifndef SERIAL_ANALYZER_SETTINGS
-#define SERIAL_ANALYZER_SETTINGS
-
+#pragma once
 #include <AnalyzerSettings.h>
 #include <AnalyzerTypes.h>
 
 #include <memory>
+
+
+#define LL_ANALYZER_NAME "UPDI Serial"
+#define LL_ANALYZER_SETTINGS "UPDISerial"
+#define LL_CHANNEL_NAME "UPDI Serial"
 
 namespace SerialAnalyzerEnums
 {
@@ -50,4 +53,3 @@ class SerialAnalyzerSettings : public AnalyzerSettings
     std::unique_ptr<AnalyzerSettingInterfaceNumberList> mSerialModeInterface;
 };
 
-#endif // SERIAL_ANALYZER_SETTINGS

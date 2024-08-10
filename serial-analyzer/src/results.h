@@ -1,5 +1,8 @@
-#ifndef SERIAL_ANALYZER_RESULTS
-#define SERIAL_ANALYZER_RESULTS
+#pragma once
+
+#ifndef LOGIC2
+#define LOGIC2
+#endif
 
 #include <AnalyzerResults.h>
 
@@ -29,4 +32,4 @@ class SerialAnalyzerResults : public AnalyzerResults
     SerialAnalyzer* mAnalyzer;
 };
 
-#endif // SERIAL_ANALYZER_RESULTS
+
