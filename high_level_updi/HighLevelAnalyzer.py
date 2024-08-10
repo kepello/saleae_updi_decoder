@@ -1,5 +1,6 @@
 from saleae.analyzers import HighLevelAnalyzer, AnalyzerFrame, ChoicesSetting
-from enum import Enum
+from saleae.data import GraphTimeDelta
+from enum import Enum, IntEnum
 
 TOO_WIDE = 1.8
 TOO_NARROW = .8
@@ -10,7 +11,7 @@ class State(Enum):
     SYNCING = 3,
     DATA = 4
 
-class BitErrors(Enum):
+class BitErrors(IntEnum):
     START = 0x01,
     PARITY = 0x02,
     STOP = 0x04,
@@ -18,6 +19,16 @@ class BitErrors(Enum):
     WIDE = 0x10,
     NOTSYNC = 0x20
 
+def BitErrorText(value):
+    error_list =[]
+    if (value & BitErrors.START): error_list.append('START')
+    if (value & BitErrors.PARITY): error_list.append('PARITY')
+    if (value & BitErrors.STOP): error_list.append('STOP')
+    if (value & BitErrors.NARROW): error_list.append('NARROW')
+    if (value & BitErrors.WIDE): error_list.append('WIDE')
+    if (value & BitErrors.NOTSYNC): error_list.append('NOTSYNC')
+    return ",".join(error_list)
+    
 # ==========================================================================================
 # High Level Analyzer Class
 # ==========================================================================================
@@ -52,21 +63,29 @@ class Hla(HighLevelAnalyzer):
         self.sync_width = 0
 
     def show_state(self, state, end_time = None):
+        print(state)
         if (end_time == None):
             end_time = self.this_frame.end_time
         self.frames.append(
-            AnalyzerFrame('state', self.state_start, end_time, {
+            AnalyzerFrame('state', 
+                          self.state_start,  
+                          end_time,  {
                 'state' : state,         
             }))
-        
-    def show_data(self, data, end_time = None):
+    
+    def show_byte(self, byte, end_time = None):
+        print('0x%02X' % byte)
         if (end_time == None):
             end_time = self.this_frame.end_time
-        self.frames.append(
-            AnalyzerFrame('byte', self.state_start, end_time, {
-                'byte' : '0x%02X' % data
+            self.frames.append(
+            AnalyzerFrame('byte', 
+                          self.state_start, 
+                          end_time, {
+                'byte' : '0x%02X' % byte
             })
         )
+        
+        self.last_byte_end = end_time
 
     def break_width(self):
         # a standard byte should be 12 widths wide
@@ -195,47 +214,39 @@ class Hla(HighLevelAnalyzer):
                 self.sync_bits = []
                 self.sync_error(BitErrors.NOTSYNC)
             else:
-                self.sync_bits.append(bit)
-                self.sync_bits.append(bit)
-                self.sync_width += width
-                self.byte_sync()
+                # Calculate the bit rate without including the stop bits
+                # since they can be extended into an idle state
+                # and have an unpredictable length
+                self.bit_width = self.sync_width / 10
+                self.show_state('SYNC')
 
     def bit_reset(self):
         # Start over with trying to find a SYNC
-        print('RESET')
+        self.show_state('RESET')
         self.bit_width = 0
         self.pump_bits = []
 
     def bit_break(self):
         self.show_state('BREAK')
-        print("BREAK")
         # reset bit width to unsynced condition
         self.bit_width = 0
 
     def bit_idle(self):
-        print("IDLE")
         self.show_state('IDLE')
 
     def bit_start(self):
-        print("START")
         self.show_state('START')
     
     def bit_error(self, errors:BitErrors):
-        print('BIT_ERR',errors)
-        self.show_state('BIT_ERR')
+        self.show_state('BIT_ERR:'+BitErrorText(errors))
 
     def sync_error(self, errors:BitErrors):
-        print('SYNC_ERR', errors)
-        self.show_state('SYNC_ERR')
+        self.show_state('SYNC_ERR: '+BitErrorText(errors))
 
 
     # ==========================================================================================
     # BYTE functions
     # ==========================================================================================
-    
-    def byte_sync(self):
-        self.bit_width = self.sync_width / 12
-        self.show_state('SYNC')
 
     # handles bytes collected from bit stream
     def byte_pump(self, bits, widthleft):
@@ -245,6 +256,7 @@ class Hla(HighLevelAnalyzer):
         # Start bit
         if (bits[0] != 0): 
             self.bit_error(BitErrors.START)
+            print(bits)
 
         # Data Bits 0-7 
         for x in range(1,9):
@@ -255,19 +267,24 @@ class Hla(HighLevelAnalyzer):
         # Parity Bit
         if (bits[9] != (parity & 0x01)):
             self.bit_error(BitErrors.PARITY)
+            print('bits',bits,'width',self.bit_width)
 
         # Stop Bits
         if (bits[10] != 1) or (bits[11] != 1):
             self.bit_error(BitErrors.STOP)
+            print(bits)
         
         # Looks like a good byte, process it
         if (byte == 0x55):
             # SYNC
             self.show_state('SYNC')
         else:
-            self.show_data(byte)
+            self.show_byte(byte)
 
-    
+# ==========================================================================================
+# Decoding functions
+# ==========================================================================================
+      
 # class Codes(IntEnum):
 #     BREAK =   0x00
 #     SYNC =   0x55
@@ -321,9 +338,10 @@ class Hla(HighLevelAnalyzer):
 
 
 # # High level analyzers must subclass the HighLevelAnalyzer class.
-# class Hla(HighLevelAnalyzer):
+# #class Decoder(HighLevelAnalyzer):
+# class UPDI():
 
-#     DisplayHex = ChoicesSetting(['No', 'Yes'])
+#    # DisplayHex = ChoicesSetting(['No', 'Yes'])
 
 #     # Result Types supported
 #     result_types = {
@@ -821,7 +839,3 @@ class Hla(HighLevelAnalyzer):
 #         else:
 #             mnemonics = 'UNKNOWN_CS_REGISTER %s 0x%02X' % (direction, value)
 #         return mnemonics
-
-
-
-
