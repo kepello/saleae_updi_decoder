@@ -6,7 +6,7 @@
 
 #pragma warning( disable : 4800 ) // warning C4800: 'U32' : forcing value to bool 'true' or 'false' (performance warning)
 
-SerialAnalyzerSettings::SerialAnalyzerSettings()
+updi_settings::updi_settings()
     : mInputChannel( UNDEFINED_CHANNEL ),
       mBitRate( 100000 )
 {
@@ -22,9 +22,9 @@ SerialAnalyzerSettings::SerialAnalyzerSettings()
     AddChannel( mInputChannel, LL_CHANNEL_NAME, false );
 }
 
-SerialAnalyzerSettings::~SerialAnalyzerSettings() = default;
+updi_settings::~updi_settings() = default;
 
-bool SerialAnalyzerSettings::SetSettingsFromInterfaces()
+bool updi_settings::SetSettingsFromInterfaces()
 {
 
     mInputChannel = mInputChannelInterface->GetChannel();
@@ -35,12 +35,12 @@ bool SerialAnalyzerSettings::SetSettingsFromInterfaces()
     return true;
 }
 
-void SerialAnalyzerSettings::UpdateInterfacesFromSettings()
+void updi_settings::UpdateInterfacesFromSettings()
 {
     mInputChannelInterface->SetChannel( mInputChannel );
 }
 
-void SerialAnalyzerSettings::LoadSettings( const char* settings )
+void updi_settings::LoadSettings( const char* settings )
 {
     SimpleArchive text_archive;
     text_archive.SetString( settings );
@@ -58,7 +58,7 @@ void SerialAnalyzerSettings::LoadSettings( const char* settings )
     UpdateInterfacesFromSettings();
 }
 
-const char* SerialAnalyzerSettings::SaveSettings()
+const char* updi_settings::SaveSettings()
 {
     SimpleArchive text_archive;
 

@@ -2,7 +2,7 @@
 
 #include <AnalyzerHelpers.h>
 
-class SerialAnalyzerSettings;
+class updi_settings;
 
 class SerialSimulationDataGenerator
 {
@@ -10,11 +10,11 @@ class SerialSimulationDataGenerator
     SerialSimulationDataGenerator();
     ~SerialSimulationDataGenerator();
 
-    void Initialize( U32 simulation_sample_rate, SerialAnalyzerSettings* settings );
+    void Initialize( U32 simulation_sample_rate, updi_settings* settings );
     U32 GenerateSimulationData( U64 newest_sample_requested, U32 sample_rate, SimulationChannelDescriptor** simulation_channels );
 
   protected:
-    SerialAnalyzerSettings* mSettings;
+    updi_settings* mSettings;
     U32 mSimulationSampleRateHz;
     BitState mBitLow;
     BitState mBitHigh;

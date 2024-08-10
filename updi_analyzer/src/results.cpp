@@ -6,7 +6,7 @@
 #include <sstream>
 
 
-updi_results::updi_results( updi_analyzer* analyzer, SerialAnalyzerSettings* settings )
+updi_results::updi_results( updi_analyzer* analyzer, updi_settings* settings )
     : AnalyzerResults(), mSettings( settings ), mAnalyzer( analyzer )
 {
 }

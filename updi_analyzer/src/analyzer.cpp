@@ -2,10 +2,11 @@
 #include "settings.h"
 #include <AnalyzerChannelData.h>
 
-updi_analyzer::updi_analyzer() : Analyzer2(), mSettings( new SerialAnalyzerSettings() ), mSimulationInitialized( false )
+updi_analyzer::updi_analyzer() : Analyzer2(), mSettings( new updi_settings() ), mSimulationInitialized( false )
 {
     SetAnalyzerSettings( mSettings.get() );
     UseFrameV2();
+    data = GetAnalyzerChannelData( mSettings->mInputChannel );
 }
 
 updi_analyzer::~updi_analyzer()
@@ -52,9 +53,93 @@ void updi_analyzer::SetupResults()
     mResults->AddChannelBubblesWillAppearOn( mSettings->mInputChannel );
 }
 
+bool updi_analyzer::CorrectWidth( U64 width )
+{
+    if( ( width < ( RateWidth * 1.5 ) ) && ( width > ( RateWidth * .5 ) ) )
+        return true;
+    else
+        return false;
+}
+
+U64 updi_analyzer::CurrentWidth() {
+    return (last_bit - channel->GetSampleNumber());
+}
+void updi_analyzer::Identify(const char* state) {
+
+        FrameV2 frameV2;
+        mResults->AddFrameV2( frameV2, state, last_bit, channel->GetSampleNumber() );
+        mResults->CommitResults();
+}
+
 void updi_analyzer::WorkerThread()
 {
+    U64 sync_start = 0;
+    U64 this_width = 0;
+    U8 bit_count = 0;
+    U64 rate_width = 0;
+
+    // We should start at high state (IDLE) at the beginning of a capture
+    last_bit = 0;
+
     // We don't know rate yet, until we get our first SYNC
+    updi_state state = updi_state::SYNC;
+
+    for( ;; )
+    {
+        switch( state ) {
+            case SYNC:
+                if (( channel->GetBitState() == BIT_LOW)) {
+                    // LOW is start of a SYNC
+                    // S 0123456 7P SS
+                    // L HLHLHLH LL HH
+                    if( bit_count == 0 )
+                    {
+                        // First bit we get a presumptive width
+                        RateWidth = CurrentWidth();
+                        bit_count++;
+                    }
+                    else if( bit_count < 8 )
+                    {
+                        // Check the widths of subsequent single wide-bits
+                        if (!CorrectWidth(CurrentWidth()) || 
+                            (channel->GetBitState() != (bit_count & 1))) {
+                                bit_count = 0;
+                                sync_start = 0;
+                                Identify("SYNC_ERR");
+                        } else { 
+                            bit_count++;
+                        }
+                    }
+                    else if (bit_count < 10) 
+                    {
+                        if (!CorrectWidth(CurrentWidth()/2) || (channel->GetBitState() != BIT_LOW))
+                        {
+                                bit_count = 0;
+                                sync_start = 0;
+                                Identify("SYNC_ERR");
+                        }
+                    } 
+                    else
+                    {
+                        if (!CorrectWidth(CurrentWidth()/2) || (channel->GetBitState() != BIT_HIGH))
+                        {
+                                bit_count = 0;
+                                sync_start = 0;
+                                Identify("SYNC_ERR");
+                        }
+                    }
+                    break;
+                }
+            case SYNCED:
+                Identify("SYNC");
+                break;
+        }
+
+        ReportProgress( last_bit);
+        last_bit = channel->GetSampleNumber();
+        channel->AdvanceToNextEdge();
+        CheckIfThreadShouldExit();
+    }
 
     mSampleRateHz = GetSampleRate();
     ComputeSampleOffsets();
@@ -64,9 +149,6 @@ void updi_analyzer::WorkerThread()
     // used for HLA byte count, this should not include an extra bit for MP/MDB
     const U32 bytes_per_transfer = 1;
 
-    mBitHigh = BIT_HIGH;
-    mBitLow = BIT_LOW;
-
     U64 bit_mask = 0;
     U64 mask = 0x1ULL;
     for( U32 i = 0; i < bits_per_transfer; i++ )
@@ -75,20 +157,15 @@ void updi_analyzer::WorkerThread()
         mask <<= 1;
     }
 
-    mSerial = GetAnalyzerChannelData( mSettings->mInputChannel );
-
-    if( mSerial->GetBitState() == mBitLow )
-
-        mSerial->AdvanceToNextEdge();
 
     for( ;; )
     {
         // we're starting high. (we'll assume that we're not in the middle of a byte.)
 
-        mSerial->AdvanceToNextEdge();
+        channel->AdvanceToNextEdge();
 
         // we're now at the beginning of the start bit.  We can start collecting the data.
-        U64 frame_starting_sample = mSerial->GetSampleNumber();
+        U64 frame_starting_sample = channel->GetSampleNumber();
 
         U64 data = 0;
         bool parity_error = false;
@@ -100,8 +177,8 @@ void updi_analyzer::WorkerThread()
 
         for( U32 i = 0; i < bits_per_transfer; i++ )
         {
-            mSerial->Advance( mSampleOffsets[ i ] );
-            data_builder.AddBit( mSerial->GetBitState() );
+            channel->Advance( mSampleOffsets[ i ] );
+            data_builder.AddBit( channel->GetBitState() );
 
             marker_location += mSampleOffsets[ i ];
             mResults->AddMarker( marker_location, AnalyzerResults::Dot, mSettings->mInputChannel );
@@ -110,17 +187,17 @@ void updi_analyzer::WorkerThread()
         parity_error = false;
 
 
-        mSerial->Advance( mParityBitOffset );
+        channel->Advance( mParityBitOffset );
         bool is_even = AnalyzerHelpers::IsEven( AnalyzerHelpers::GetOnesCount( data ) );
 
         if( is_even == true )
         {
-            if( mSerial->GetBitState() != mBitLow ) // we expect a low bit, to keep the parity even.
+            if( channel->GetBitState() != BIT_LOW ) // we expect a low bit, to keep the parity even.
                 parity_error = true;
         }
         else
         {
-            if( mSerial->GetBitState() != mBitHigh ) // we expect a high bit, to force parity even.
+            if( channel->GetBitState() != BIT_HIGH ) // we expect a high bit, to force parity even.
                 parity_error = true;
         }
 
@@ -131,15 +208,15 @@ void updi_analyzer::WorkerThread()
         // now we must determine if there is a framing error.
         framing_error = false;
 
-        mSerial->Advance( mStartOfStopBitOffset );
+        channel->Advance( mStartOfStopBitOffset );
 
-        if( mSerial->GetBitState() != mBitHigh )
+        if( channel->GetBitState() != BIT_HIGH )
         {
             framing_error = true;
         }
         else
         {
-            U32 num_edges = mSerial->Advance( mEndOfStopBitOffset );
+            U32 num_edges = channel->Advance( mEndOfStopBitOffset );
             if( num_edges != 0 )
                 framing_error = true;
         }
@@ -160,7 +237,7 @@ void updi_analyzer::WorkerThread()
         // note that we're not using the mData2 or mType fields for anything, so we won't bother to set them.
         Frame frame;
         frame.mStartingSampleInclusive = static_cast<S64>( frame_starting_sample );
-        frame.mEndingSampleInclusive = static_cast<S64>( mSerial->GetSampleNumber() );
+        frame.mEndingSampleInclusive = static_cast<S64>( channel->GetSampleNumber() );
         frame.mData1 = data;
         frame.mFlags = 0;
         if( parity_error == true )
@@ -190,7 +267,7 @@ void updi_analyzer::WorkerThread()
             frameV2.AddString( "error", "framing" );
         }
 
-        mResults->AddFrameV2( frameV2, "data", frame_starting_sample, mSerial->GetSampleNumber() );
+        mResults->AddFrameV2( frameV2, "data", frame_starting_sample, channel->GetSampleNumber() );
 
         mResults->CommitResults();
 
@@ -199,8 +276,8 @@ void updi_analyzer::WorkerThread()
 
         if( framing_error == true ) // if we're still low, let's fix that for the next round.
         {
-            if( mSerial->GetBitState() == mBitLow )
-                mSerial->AdvanceToNextEdge();
+            if( channel->GetBitState() == BIT_LOW )
+                channel->AdvanceToNextEdge();
         }
     }
 }

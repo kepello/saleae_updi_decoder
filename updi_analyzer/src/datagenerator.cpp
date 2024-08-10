@@ -5,7 +5,7 @@ SerialSimulationDataGenerator::SerialSimulationDataGenerator() = default;
 
 SerialSimulationDataGenerator::~SerialSimulationDataGenerator() = default;
 
-void SerialSimulationDataGenerator::Initialize( U32 simulation_sample_rate, SerialAnalyzerSettings* settings )
+void SerialSimulationDataGenerator::Initialize( U32 simulation_sample_rate, updi_settings* settings )
 {
     mSimulationSampleRateHz = simulation_sample_rate;
     mSettings = settings;

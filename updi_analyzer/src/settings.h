@@ -11,21 +11,11 @@
 
 #define BITS_PER_TRANSFER 8
 
-namespace SerialAnalyzerEnums
-{
-    enum Mode
-    {
-        Normal,
-        MpModeMsbZeroMeansAddress,
-        MpModeMsbOneMeansAddress
-    };
-}
-
-class SerialAnalyzerSettings : public AnalyzerSettings
+class updi_settings : public AnalyzerSettings
 {
   public:
-    SerialAnalyzerSettings();
-    virtual ~SerialAnalyzerSettings();
+    updi_settings();
+    virtual ~updi_settings();
 
     virtual bool SetSettingsFromInterfaces();
     void UpdateInterfacesFromSettings();
@@ -37,6 +27,4 @@ class SerialAnalyzerSettings : public AnalyzerSettings
 
   protected:
     std::unique_ptr<AnalyzerSettingInterfaceChannel> mInputChannelInterface;
-
 };
-

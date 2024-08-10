@@ -4,8 +4,13 @@
 #include "results.h"
 #include "datagenerator.h"
 
+enum updi_state
+{
+    SYNC,
+    SYNCED
+};
 
-class SerialAnalyzerSettings;
+class updi_settings;
 
 class updi_analyzer : public Analyzer2
 {
@@ -14,7 +19,9 @@ class updi_analyzer : public Analyzer2
     virtual ~updi_analyzer();
     virtual void SetupResults();
     virtual void WorkerThread();
-
+    bool CorrectWidth( U64 );
+    U64 CurrentWidth();
+    void Identify(const char* state);
     virtual U32 GenerateSimulationData( U64 newest_sample_requested, U32 sample_rate, SimulationChannelDescriptor** simulation_channels );
     virtual U32 GetMinimumSampleRateHz();
 
@@ -30,21 +37,23 @@ class updi_analyzer : public Analyzer2
     void ComputeSampleOffsets();
 
   protected: // vars
-    std::unique_ptr<SerialAnalyzerSettings> mSettings;
+    std::unique_ptr<updi_settings> mSettings;
     std::unique_ptr<updi_results> mResults;
-    AnalyzerChannelData* mSerial;
+    AnalyzerChannelData* channel;
 
     SerialSimulationDataGenerator mSimulationDataGenerator;
     bool mSimulationInitialized;
 
     // Serial analysis vars:
     U32 mSampleRateHz;
+    U64 RateWidth;
+    U64 last_bit;
+
     std::vector<U32> mSampleOffsets;
     U32 mParityBitOffset;
     U32 mStartOfStopBitOffset;
     U32 mEndOfStopBitOffset;
-    BitState mBitLow;
-    BitState mBitHigh;
+    AnalyzerChannelData* data;
 
 #pragma warning( pop )
 };

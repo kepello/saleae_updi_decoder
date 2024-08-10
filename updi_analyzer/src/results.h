@@ -11,12 +11,12 @@
 #define MP_MODE_ADDRESS_FLAG ( 1 << 2 )
 
 class updi_analyzer;
-class SerialAnalyzerSettings;
+class updi_settings;
 
 class updi_results : public AnalyzerResults
 {
   public:
-    updi_results( updi_analyzer* analyzer, SerialAnalyzerSettings* settings );
+    updi_results( updi_analyzer* analyzer, updi_settings* settings );
     virtual ~updi_results();
 
     virtual void GenerateBubbleText( U64 frame_index, Channel& channel, DisplayBase display_base );
@@ -28,6 +28,6 @@ class updi_results : public AnalyzerResults
 
   protected: // functions
   protected: // vars
-    SerialAnalyzerSettings* mSettings;
+    updi_settings* mSettings;
     updi_analyzer* mAnalyzer;
 };
