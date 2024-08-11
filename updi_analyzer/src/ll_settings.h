@@ -1,21 +1,17 @@
-#pragma once
+#ifndef LL_ANALYZER_SETTINGS
+#define LL_ANALYZER_SETTINGS
+
+#define ANALYZER_NAME "UPDI"
+
 #include <AnalyzerSettings.h>
 #include <AnalyzerTypes.h>
-
 #include <memory>
 
-
-#define LL_ANALYZER_NAME "UPDI Serial"
-#define LL_ANALYZER_SETTINGS "UPDISerial"
-#define LL_CHANNEL_NAME "UPDI Serial"
-
-#define BITS_PER_TRANSFER 8
-
-class updi_settings : public AnalyzerSettings
+class ll_settings : public AnalyzerSettings
 {
   public:
-    updi_settings();
-    virtual ~updi_settings();
+    ll_settings();
+    virtual ~ll_settings();
 
     virtual bool SetSettingsFromInterfaces();
     void UpdateInterfacesFromSettings();
@@ -23,8 +19,11 @@ class updi_settings : public AnalyzerSettings
     virtual const char* SaveSettings();
 
     Channel mInputChannel;
-    U32 mBitRate;
+    U16 mBitRate = 9600;
 
   protected:
     std::unique_ptr<AnalyzerSettingInterfaceChannel> mInputChannelInterface;
+
 };
+
+#endif // LL_ANALYZER_SETTINGS

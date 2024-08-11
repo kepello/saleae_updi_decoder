@@ -1,4 +1,4 @@
-#include "settings.h"
+#include "ll_settings.h"
 
 #include <AnalyzerHelpers.h>
 #include <sstream>
@@ -6,63 +6,62 @@
 
 #pragma warning( disable : 4800 ) // warning C4800: 'U32' : forcing value to bool 'true' or 'false' (performance warning)
 
-updi_settings::updi_settings()
-    : mInputChannel( UNDEFINED_CHANNEL ),
-      mBitRate( 100000 )
+ll_settings::ll_settings()
+    : mInputChannel( UNDEFINED_CHANNEL )
 {
     mInputChannelInterface.reset( new AnalyzerSettingInterfaceChannel() );
-    mInputChannelInterface->SetTitleAndTooltip( "Input Channel", LL_ANALYZER_NAME );
+    mInputChannelInterface->SetTitleAndTooltip( "Input Channel", "UPDI Protocol" );
     mInputChannelInterface->SetChannel( mInputChannel );
 
+    AddInterface( mInputChannelInterface.get() );
+
+    // AddExportOption( 0, "Export as text/csv file", "text (*.txt);;csv (*.csv)" );
     AddExportOption( 0, "Export as text/csv file" );
     AddExportExtension( 0, "text", "txt" );
     AddExportExtension( 0, "csv", "csv" );
 
     ClearChannels();
-    AddChannel( mInputChannel, LL_CHANNEL_NAME, false );
+    AddChannel( mInputChannel, "UPDI", false );
 }
 
-updi_settings::~updi_settings() = default;
+ll_settings::~ll_settings() = default;
 
-bool updi_settings::SetSettingsFromInterfaces()
+bool ll_settings::SetSettingsFromInterfaces()
 {
-
     mInputChannel = mInputChannelInterface->GetChannel();
-
     ClearChannels();
-    AddChannel( mInputChannel, LL_CHANNEL_NAME, true );
-
+    AddChannel( mInputChannel, "UPDI", true );
     return true;
 }
 
-void updi_settings::UpdateInterfacesFromSettings()
+void ll_settings::UpdateInterfacesFromSettings()
 {
     mInputChannelInterface->SetChannel( mInputChannel );
 }
 
-void updi_settings::LoadSettings( const char* settings )
+void ll_settings::LoadSettings( const char* settings )
 {
     SimpleArchive text_archive;
     text_archive.SetString( settings );
 
     const char* name_string; // the first thing in the archive is the name of the protocol analyzer that the data belongs to.
     text_archive >> &name_string;
-    if( strcmp( name_string, LL_ANALYZER_SETTINGS ) != 0 )
-        AnalyzerHelpers::Assert( "Provided with a settings string that doesn't belong to us;" );
+    if( strcmp( name_string, "UPDI" ) != 0 )
+        AnalyzerHelpers::Assert( "UPDI: Provided with a settings string that doesn't belong to us;" );
 
     text_archive >> mInputChannel;
 
     ClearChannels();
-    AddChannel( mInputChannel, LL_CHANNEL_NAME, true );
+    AddChannel( mInputChannel, "UPDI", true );
 
     UpdateInterfacesFromSettings();
 }
 
-const char* updi_settings::SaveSettings()
+const char* ll_settings::SaveSettings()
 {
     SimpleArchive text_archive;
 
-    text_archive << LL_ANALYZER_SETTINGS;
+    text_archive << ANALYZER_NAME;
     text_archive << mInputChannel;
 
     return SetReturnString( text_archive.GetString() );

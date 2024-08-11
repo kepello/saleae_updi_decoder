@@ -1,5 +1,5 @@
 cmake_minimum_required (VERSION 3.11)
-project(serial_analyzer)
+project(ll_analyzer)
 
 add_definitions( -DLOGIC2 )
 
@@ -14,14 +14,12 @@ set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 include(ExternalAnalyzerSDK)
 
 set(SOURCES 
-src/analyzer.cpp
-src/analyzer.h
-src/results.cpp
-src/results.h
-src/settings.cpp
-src/settings.h
-src/datagenerator.cpp
-src/datagenerator.h
+src/ll_analyzer.cpp
+src/ll_analyzer.h
+src/ll_results.cpp
+src/ll_results.h
+src/ll_settings.cpp
+src/ll_settings.h
 )
 
-add_analyzer_plugin(serial_analyzer SOURCES ${SOURCES})
+add_analyzer_plugin(ll_analyzer SOURCES ${SOURCES})

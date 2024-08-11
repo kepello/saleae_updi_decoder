@@ -1,33 +1,27 @@
-#pragma once
-
-#ifndef LOGIC2
-#define LOGIC2
-#endif
+#ifndef LL_ANALYZER_RESULTS
+#define LL_ANALYZER_RESULTS
 
 #include <AnalyzerResults.h>
 
-#define FRAMING_ERROR_FLAG ( 1 << 0 )
-#define PARITY_ERROR_FLAG ( 1 << 1 )
-#define MP_MODE_ADDRESS_FLAG ( 1 << 2 )
+class ll_analyzer;
+class ll_settings;
 
-class updi_analyzer;
-class updi_settings;
-
-class updi_results : public AnalyzerResults
+class ll_results : public AnalyzerResults
 {
   public:
-    updi_results( updi_analyzer* analyzer, updi_settings* settings );
-    virtual ~updi_results();
+    ll_results( ll_analyzer* analyzer, ll_settings* settings );
+    virtual ~ll_results();
 
     virtual void GenerateBubbleText( U64 frame_index, Channel& channel, DisplayBase display_base );
     virtual void GenerateExportFile( const char* file, DisplayBase display_base, U32 export_type_user_id );
-
     virtual void GenerateFrameTabularText( U64 frame_index, DisplayBase display_base );
     virtual void GeneratePacketTabularText( U64 packet_id, DisplayBase display_base );
     virtual void GenerateTransactionTabularText( U64 transaction_id, DisplayBase display_base );
 
   protected: // functions
   protected: // vars
-    updi_settings* mSettings;
-    updi_analyzer* mAnalyzer;
+    ll_settings* mSettings;
+    ll_analyzer* mAnalyzer;
 };
+
+#endif // LL_ANALYZER_RESULTS
