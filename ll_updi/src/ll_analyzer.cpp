@@ -302,9 +302,10 @@ void ll_analyzer::WorkerThread()
     channel = GetAnalyzerChannelData( mSettings->mInputChannel );
 
     // We should start at high state (IDLE) at the beginning of a capture
+    // If we are starting low consider it an initial break
     if( channel->GetBitState() == BIT_LOW )
     {
-        Identify( "START", FLAG_START, 0x00 );
+        Identify( "BREAK", FLAG_BREAK, 0x00 );
         channel->AdvanceToNextEdge();
     }
 

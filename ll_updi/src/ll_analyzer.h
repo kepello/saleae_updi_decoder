@@ -23,9 +23,7 @@ enum FrameFlags
     FLAG_ACK,
     FLAG_WRONG_BIT,
     FLAG_WIDE,
-    FLAG_NARROW,
-    FLAG_START,
-    FLAG_RATE
+    FLAG_NARROW
 };
 
 class settings;

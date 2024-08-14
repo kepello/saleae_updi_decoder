@@ -48,12 +48,6 @@ void ll_results::GenerateBubbleText( U64 frame_index, Channel& /*channel*/,
     case FLAG_ACK:
         AddResultString( "ACT" );
         break;
-    case FLAG_RATE:
-        AddResultString( "RATE" );
-        break;
-    case FLAG_START:
-        AddResultString( "START" );
-        break;
     }
 }
 

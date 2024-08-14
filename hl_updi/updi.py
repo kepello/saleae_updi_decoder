@@ -1,7 +1,7 @@
 from saleae.analyzers import HighLevelAnalyzer, AnalyzerFrame, ChoicesSetting
 from enum import IntEnum, Enum
 from opcodes import OPCODES
-
+from registers import REGISTERS
 
 class States(Enum):
     Start =     1
@@ -108,9 +108,12 @@ class hla(HighLevelAnalyzer):
     def register_info(self, byte):
         return(byte & 0b1111)
 
-    def addframe(self, mnemonic, end_time, comments=[]):     
-        # Display the Frame
+    def addframe(self, mnemonic, end_time, comments=[]):    
         hex = self.gethex()
+
+        # print(self.start_time, end_time, '0x%04X'% self.opcode_start, hex, mnemonic, ', '.join(comments) if len(comments)>0 else '') 
+
+        # Display the Frame
         self.frames.append(AnalyzerFrame('UPDI', self.start_time, end_time, {
             'count' : '%04X' % self.opcode_start,
             'data' : hex,
@@ -120,6 +123,7 @@ class hla(HighLevelAnalyzer):
 
     # Decode function, called by Logic 2 software for each byte
     def decode(self, frame:AnalyzerFrame):
+
 
         # Initialize our results array
         self.frames=[]
@@ -137,7 +141,6 @@ class hla(HighLevelAnalyzer):
         
         # Start State = beginning of new command
         if (self.state == States.Start):
-
             # Handle special events
             if (byte == 0x55):
                 # SYNC event
@@ -148,7 +151,20 @@ class hla(HighLevelAnalyzer):
                 # IDLE event
                 self.comments.append('(IDLE)')
                 self.start_time = frame.start_time
+                self.addframe("IDLE", frame.end_time)
+                self.mnemonic = ''
+                self.comments = []
+                self.start_time = 0
                 return self.frames
+            elif (byte == 0x00):
+                # BREAK event
+                self.comments.append('(BREAK)')
+                self.start_time = frame.start_time
+                self.addframe("BREAK", frame.end_time)
+                self.mnemonic = ''
+                self.comments = []
+                self.start_time = 0
+                return self.frames 
             else:
                 # Standard Data
                 if (self.start_time == 0):
@@ -183,9 +199,15 @@ class hla(HighLevelAnalyzer):
                 
         # If there is an address, we process it first
         if (self.state == States.Address):
+            # It's possible that we are repeating a previous opcode, which would make the start
+            # here rather than at the opcode point
+            if (self.start_time == 0):
+                self.start_time = frame.start_time
+            # If we need address, get it
             if (self.address_count != 0):
                 self.address.append(byte)
                 self.address_count -= 1
+            # If we are now done with address, move on to data
             if self.address_count == 0:
                 self.state = States.Data
                 return self.frames
@@ -197,6 +219,7 @@ class hla(HighLevelAnalyzer):
                 self.data_count -= 1
             if self.data_count == 0:
 
+                # No more data, so that means we have completed the command
                 self.mnemonic += self.recognized_opcode['name']
 
                 if ('operator' in self.recognized_opcode) and (self.recognized_opcode['operator']=='*'):
@@ -243,286 +266,8 @@ class hla(HighLevelAnalyzer):
                         self.state = States.Start
                 else:
                     self.state = States.Start
-
         return self.frames
     
-
-
-    # def old_decode(self, frame: AnalyzerFrame):
-
-    #     self.frames = []
-    #     if ('data' in frame.data):
-    #         b = frame.data['data'][0]
-    #         self.payload.append(b)
-    #         if (self.start_time == 0):
-    #             self.start_time = frame.start_time
-
-    #         if (self.state == States.Start):
-    #             self.start_time = frame.start_time
-    #             self.data = DataArray()
-    #             self.address = DataArray()
-    #             # if (b == Codes.BREAK):
-    #             #     self.breakcode(frame)
-    #             # if (b & 0b00010000):
-    #             #     self.error(frame)
-    #             # else:
-    #             self.code(b)
-    #             self.last_code = b
-    #             return self.frames
-
-    #         if (self.state == States.Address):
-    #             if (self.addressLength != 0):
-    #                 self.address.append(b)
-    #                 self.addressLength -= 1
-    #             if self.addressLength == 0:
-    #                 self.state = States.Data
-    #                 return self.frames
-
-    #         if (self.state == States.Data):
-    #             if (self.dataLength != 0):
-    #                 self.data.append(b)
-    #                 self.dataLength -= 1
-    #             if self.dataLength == 0:
-    #                 self.endtime = frame.end_time
-    #                 self.complete()
-                    
-    #                 if (self.repeatCount>0):
-    #                     self.repeatCode = self.last_code
-    #                 if (self.hasAck):
-    #                     print('*** requires ACK')
-    #                     self.state = States.ACK
-    #                     return self.frames
-    #                 else:
-    #                     self.state = States.Repeat
-
-    #         if (self.state == States.ACK):
-    #             if (b == Codes.ACK):
-    #                 self.code(Codes.ACK)
-    #             self.state = States.Repeat
-
-    #         if (self.state == States.Repeat):
-    #             # Do we need to repeat this command?
-    #             if self.command != Opcodes.REPEAT:
-    #                 if (self.repeatCount>0):
-    #                     print('*** requires a repeat')
-    #                     self.start_time = 0
-    #                     self.data = DataArray()
-    #                     self.address = DataArray()
-    #                     self.code(self.repeatCode)
-    #                     self.repeatCount -= 1
-    #                 else:
-    #                     self.state = States.Start
-    #             else:
-    #                 self.state = States.Start
-            
-    #     return self.frames
-
-    # def error(self, frame):
-    #     hex = self.gethex()
-    #     b = frame.data['data'][0]
-    #     mnemonics = 'ERROR 0x%02X' % b
-    #     print(mnemonics, hex)
-    #     self.endtime = frame.end_time
-    #     self.addframe(mnemonics, self.byteStart, hex)
-
-    # def breakcode(self, frame: AnalyzerFrame):
-    #     self.repeatCount = 0
-    #     self.repeatCode = 0
-    #     hex = self.gethex()
-    #     mnemonics = 'BREAK'
-    #     print(mnemonics)
-    #     self.endtime = frame.end_time
-    #     self.addframe(mnemonics, self.byteStart, hex)
-
-    # # def ack(self, frame: AnalyzerFrame):
-    # #     hex = self.gethex()
-    # #     mnemonics = ' ACK'
-    # #     print(mnemonics)
-    # #     self.endtime = frame.end_time
-    # #     self.addframe(mnemonics, self.byteStart, hex)
-
-    # # def sync(self, frame: AnalyzerFrame):
-    # #     hex = self.gethex()
-    # #     mnemonics = 'SYNC '
-    # #     # print(mnemonics)
-    # #     self.endtime = frame.end_time
-    # #     self.addframe(mnemonics, self.byteStart, hex)
-
-    # def code(self, b):
-    #     #debug('code 0x%02X'% b)
-
-    #     if b == Codes.SYNC:
-    #         self.mnemonics += '(SYNC) '
-    #         return
-    #     elif b == Codes.ACK:
-    #         self.mnemonics += '  (ACK)'
-    #         return
-        
-    #     self.hasAck = False
-    #     opcode = b >> 5
-    #     self.commandByte = b
-    #     if opcode == Opcodes.LD:
-    #         self.command=Opcodes.LD
-    #         self.state = States.Data
-    #         self.sizeB = (b & BitMask.B)
-    #         self.dataLength = self.dataSize(self.sizeB)[0]
-    #         #debug('LD 0x%02X dataLength 0x%02X' % (self.sizeB, self.dataLength))
-    #     elif opcode == Opcodes.LDS:
-    #         self.command = Opcodes.LDS
-    #         self.state = States.Address
-    #         self.sizeA = ((b & BitMask.A)>>2)
-    #         self.addressLength =  self.addressSize(self.sizeA)[0]
-    #         self.sizeB = ((b & BitMask.B)) 
-    #         self.dataLength = self.dataSize(self.sizeB)[0]
-    #         #debug('LDS ', self.addressLength, self.dataLength)
-    #     elif opcode == Opcodes.STS:
-    #         self.command=Opcodes.STS
-    #         self.state = States.Address
-    #         self.sizeA = ((b & BitMask.A)>>2) 
-    #         self.addressLength = self.addressSize(self.sizeA)[0]
-    #         self.sizeB = ((b & BitMask.B)>>2)
-    #         self.dataLength = self.dataSize(self.sizeB)[0]
-    #         self.hasAck = True
-    #         print('*** setting hasAck=true')
-    #         #debug('STS ', self.addressLength, self.dataLength)
-    #     elif opcode == Opcodes.ST:
-    #         self.command=Opcodes.ST
-    #         self.state = States.Data
-    #         self.sizeB = (b & BitMask.B) 
-    #         self.dataLength = self.dataSize(self.sizeB)[0]
-    #         self.hasAck = True
-    #         print('*** setting hasAck=true')
-    #         #debug('ST dataLength=0x%02X' % self.dataLength)
-    #     elif opcode == Opcodes.LDCS:
-    #         self.command=Opcodes.LDCS
-    #         self.state = States.Data
-    #         self.address.append(b & BitMask.CS)
-    #         self.dataLength = 1
-    #     elif opcode == Opcodes.STCS:
-    #         # debug('STCS')
-    #         self.command=Opcodes.STCS
-    #         self.state = States.Data
-    #         self.address.append(b & BitMask.CS)
-    #         self.dataLength = 1
-    #     elif opcode == Opcodes.REPEAT:
-    #         self.command=Opcodes.REPEAT
-    #         self.state = States.Data
-    #         self.sizeB = (b & BitMask.B)
-    #         self.dataLength = self.dataSize(self.sizeB)[0]
-    #     elif opcode == Opcodes.KEY:
-    #         if (b & BitMask.SIB):
-    #             self.SIB = True
-    #         else:
-    #             self.SIB = False
-    #         self.sizeB = (b & BitMask.B)
-    #         self.command=Opcodes.KEY
-    #         self.state = States.Data
-    #         self.dataLength = self.keySize(self.sizeB)[0]
-
-
-        
-    # def complete(self):
-    #     hex = self.gethex()
-    #     #mnemonics = ''
-    #     if self.command == Opcodes.KEY:
-    #         self.mnemonics +=  'KEY '
-    #         if (self.SIB):
-    #             self.mnemonics+= 'SIB == '
-    #         else:
-    #             self.mnemonics+= '= '
-    #         self.mnemonics += '%s:("%s")' % (
-    #             self.keySize(self.sizeB)[1],
-    #             self.data.toAsciiString()
-    #         )
-
-    #     elif self.command == Opcodes.ST:
-    #         pointer = (self.commandByte & BitMask.A) >> 2
-
-    #         self.mnemonics +=  'ST '
-    #         if (pointer == 0x02):
-    #             # Set Pointer
-    #             self.mnemonics += 'PTR = %s:%s' % (
-    #                 self.addressSize(self.sizeB)[1], 
-    #                 self.data.toHexString()
-    #             )
-    #         elif (pointer == 0x01):
-    #             # Store to incremented pointer
-    #             self.mnemonics += '*(PTR++) = %s:%s' % (
-    #                 self.dataSize(self.sizeB)[1], 
-    #                 self.data.toHexString()
-    #             )
-    #         elif (pointer == 0x00):
-    #              # Store to pointer
-    #             self.mnemonics += '*(PTR) = %s:%s' % (
-    #                 self.dataSize(self.sizeB)[1], 
-    #                 self.data.toHexString()
-    #             )
-
-    #     elif self.command == Opcodes.LDCS:
-    #         csreg = self.CSRegister(self.address[0],self.data[0], direction='==')
-    #         self.mnemonics +=  'LDCS %s' % csreg
-
-    #     elif self.command == Opcodes.STCS:
-    #         csreg = self.CSRegister(self.address[0],self.data[0])
-    #         self.mnemonics +=  'STCS %s' % csreg
-
-    #     elif self.command == Opcodes.LD:
-    #         #debug('LD sizeB 0x%02X data %s' % (self.sizeB, self.data.toHexString()))
-    #         pointer = (self.commandByte & BitMask.A) >> 2
-    #         self.mnemonics +=  'LD '
-    #         if (pointer == 0x02):
-    #             # Set Pointer
-    #             self.mnemonics += 'PTR = %s:%s' % (
-    #                 self.addressSize(self.sizeB)[1], 
-    #                 self.data.toHexString()
-    #             )
-    #         elif (pointer == 0x01):
-    #             # Store to incremented pointer
-    #             self.mnemonics += '*(PTR++) == %s:%s' % (
-    #                 self.dataSize(self.sizeB)[1], 
-    #                 self.data.toHexString()
-    #             )
-    #         elif (pointer == 0x00):
-    #              # Store to pointer
-    #             self.mnemonics += '*(PTR) == %s:%s' % (
-    #                 self.dataSize(self.sizeB)[1], 
-    #                 self.data.toHexString()
-    #             )
-
-    #     elif self.command == Opcodes.REPEAT:
-    #         # calculate value) from hex repeat count
-    #         repeat = self.data
-    #         self.mnemonics +=  'REPEAT %s' % repeat.toHexString()
-    #         self.repeatCount = repeat.toTotal() 
-    #         self.repeatCode = 0
-
-    #     elif self.command == Opcodes.LDS:
-    #         self.mnemonics += 'LDS %s:%s == (%s:%s)' % (
-    #             self.addressSize(self.sizeA)[1], 
-    #             self.address.toHexString(), 
-    #             self.dataSize(self.sizeB)[1],
-    #             self.data.toHexString()
-    #         )
-        
-    #     elif self.command == Opcodes.STS:
-    #         self.mnemonics +=  'STS %s:%s = (%s:%s)' % (
-    #             self.addressSize(self.sizeA)[1],
-    #             self.address.toHexString(), 
-    #             self.dataSize(self.sizeB)[1],
-    #             self.data.toHexString()
-    #         )
-    #     else:
-    #         self.mnemonics +=  'UNself.RECOGNIZED_OPCODE 0x%02X' % self.command
-
-    #     # Display to the Console, either Menomics or Descriptive based on setting
-    #     print(self.mnemonics)
-
-    #     self.addframe(self.mnemonics, self.byteStart, hex)
-    #     #self.mnemonics = ''
-    #     self.state = States.Start
-
-
-
     def MemoryMap(self, address, value, direction='='):
         if address <= 0x003F:
             register = ''
@@ -550,158 +295,3 @@ class hla(HighLevelAnalyzer):
             mnemonics = 'FLASH 0x%04X %d (0x%2X)' % (address, direction, value)
         elif address <= 0xFFFF:
             mnemonics = 'RESERVED 0x%04X %d (0x%2X)' % (address, direction, value)
-
-    def CSRegister(self, number, value, direction='='):
-        mnemonics  = ''
-        if number == 0x00:
-            rev = value>>4
-            mnemonics = 'STATUSA %s 0x%02X (UPDIREV=0x%02X)' % (direction,value,rev)
-        elif number == 0x01:
-            mnemonics = 'STATUSB %s 0x%02X (PESIG=' % (direction,value)
-            if value == 0x00:
-                mnemonics += 'NO_ERROR'
-            elif value == 0x01:
-                mnemonics += 'PARITY_ERROR'
-            elif value == 0x02:
-                mnemonics += 'FRAME_ERROR'            
-            elif value == 0x03:
-                mnemonics += 'ACCESS_LAYER_TIMEOUT'            
-            elif value == 0x04:
-                mnemonics += 'CLOCK_RECOVERY_ERROR'
-            elif value == 0x05:
-                mnemonics += 'RESERVED'
-            elif value == 0x06:
-                mnemonics += 'BUS_ERROR'
-            elif value == 0x07:
-                mnemonics += 'CONTENTION_ERROR'
-        elif number == 0x02:
-            mnemonics = 'CTRLA %s 0x%02X (' % (direction,value)
-            if (value & 0x80):
-                mnemonics += 'IBDLY '
-            if (value & 0x20):
-                mnemonics += 'PARD '
-            if (value & 0x10):
-                mnemonics += 'DTD '
-            if (value & 0x08):
-                mnemonics += 'RSD '
-            gtv = value & 0x07
-            mnemonics += 'GTVAL='
-            if (gtv == 0x00):
-                mnemonics += '128_CYCLE'
-            elif (gtv == 0x01):
-                mnemonics += '64_CYCLE'
-            elif (gtv == 0x02):
-                mnemonics += '32_CYCLE'
-            elif (gtv == 0x03):
-                mnemonics += '16_CYCLE'
-            elif (gtv == 0x04):
-                mnemonics += '8_CYCLE'
-            elif (gtv == 0x05):
-                mnemonics += '4_CYCLE'
-            elif (gtv == 0x06):
-                mnemonics += '2_CYCLE'
-            elif (gtv == 0x07):
-                mnemonics += 'RESERVED'
-            mnemonics += ')'
-        elif number == 0x03:
-            mnemonics = 'CTRLB %s 0x%02X (' % (direction,value)
-            if (value & 0x8):
-                mnemonics += 'NACKDIS '
-            if (value & 0x04):
-                mnemonics += 'CCDETDIS '
-            if (value & 0x02):
-                mnemonics += 'UPDIDIS'
-            mnemonics= mnemonics.strip() + ')'
-        elif number == 0x04:
-            mnemonics = 'ASI_OCD_CTRLA %s 0x%02X (' % (direction, value);
-            if (value & 0x80):
-                mnemonics += 'SOR_DIR '
-            if (value & 0x02): 
-                mnemonics += 'RUN '
-            if (value & 0x01):
-                mnemonics += 'STOP'
-            mnemonics= mnemonics.strip() + ')'
-        elif number == 0x05:
-            # Requires OCDMV
-            mnemonics = 'ASI_OCD_STATUS %s (0x%02X (' % (direction, value);
-            if (value & 0x10):
-                mnemonics += 'OCDMV '
-            if (value & 0x01):
-                mnemonics += 'STOPPED'
-            mnemonics = mnemonics.strip() + ')'
-        elif number == 0x06: 
-            mnemonics = 'RESERVED_6 %s 0x%02X' % (direction, value)    
-        elif number == 0x07:
-            mnemonics = 'ASI_KEY_STATUS %s 0x%02X (' % (direction,value)
-            if (value & 0x20):
-                mnemonics += 'UROWWRITE '
-            if (value & 0x10):
-                mnemonics += 'NVMPROG '
-            if (value & 0x08):
-                mnemonics += 'CHIPERASE'
-            mnemonics = mnemonics.strip() + ')'
-        elif number == 0x08:
-            mnemonics = 'ASI_RESET_REQ %s 0x%02X (' % (direction, value)
-            if (value == 0x00):
-                mnemonics += 'RUN'
-            elif (value == 0x59):
-                mnemonics += 'RESET'
-            else:
-                mnemonics += 'CLEARED'
-            mnemonics += ')'
-        elif number == 0x09:
-            clk = value & 0x03
-            mnemonics = 'ASI_CTRLA %s 0x%02X (UPDICLKSEL=' % (direction, value)
-            if (clk == 0x00):
-                mnemonics += 'RESERVED_UPDICLK'
-            elif (clk == 0x01):
-                mnemonics += '16MHZ_UPDICLK'
-            elif (clk == 0x02):
-                mnemonics += '8MHZ_UPDICLK'            
-            elif (clk == 0x03):
-                mnemonics += '4MHZ_UPDICLK'
-            mnemonics += ')'
-        elif number == 0x0A:
-            mnemonics = 'ASI_SYS_CTRLA %s 0x%02X (not yet described)' % (direction, value)
-        elif number == 0x0B:
-            mnemonics = 'ASI_SYS_STATUS %s 0x%02X (' % (direction,value)
-            if (value & 0x80):
-                mnemonics += 'UNKNOWN_BIT_8 '
-            if (value & 0x40):
-                mnemonics += 'UNKNOWN_BIT_7 '    
-            if (value & 0x02): 
-                mnemonics += 'UNKNOWN_BIT_2 '           
-            if (value & 0x20):
-                mnemonics += 'RSTSYS '
-            if (value & 0x10):
-                mnemonics += 'INSLEEP '
-            if (value & 0x08):
-                mnemonics += 'NVMPROG '
-            if (value & 0x04):
-                mnemonics += 'UROWPROG '
-            if (value & 0x01):
-                mnemonics += 'NVMLOCK '
-            mnemonics = mnemonics.strip() + ')'
-        elif number == 0x0C:
-            crc = value & 0x03
-            mnemonics = 'ASI_CRC_STATUS %s 0x%02X (CRC_STATUS=0x%02X ' % (direction,value,crc)
-            if (crc == 1):
-                mnemonics += 'NOT_ENABLED'
-            elif (crc == 2):
-                mnemonics += 'BUSY'
-            elif (crc == 3):
-                mnemonics += 'OK'
-            elif (crc == 4):
-                mnemonics += 'FAILED'
-            else:
-                mnemonics += 'RESERVED'
-            mnemonics += ')'
-        elif number == 0x0D:
-            mnemonics = 'ASI_OCD_MESSAGE %s 0x%02X (' % (direction, value)
-        else:
-            mnemonics = 'UNKNOWN_CS_REGISTER %s 0x%02X' % (direction, value)
-        return mnemonics
-
-
-
-

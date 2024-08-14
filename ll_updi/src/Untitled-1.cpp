@@ -5,10 +5,6 @@
 #include <AnalyzerResults.h>
 #include <sstream>
 
-    void Identify( U64 start, U64 end, const char* note, FrameFlags flag = FLAG_NONE, int value = 0, const char* comment = NULL);
-    void Identify( const char* note, FrameFlags flag = FLAG_NONE, int value = 0, const char* comment= NULL);
-    void Identify( U64 start, const char* note, FrameFlags flag = FLAG_NONE, int value = 0, const char* comment = NULL);
-
 ll_analyzer::ll_analyzer() : Analyzer2(), mSettings( new ll_settings() )
 {
     SetAnalyzerSettings( mSettings.get() );
@@ -103,7 +99,7 @@ bool ll_analyzer::unsynced()
 {
     static U8 sync_bit_count = 0;
     static U64 sync_start = 0;
-    // static std::stringstream ss;
+    //static std::stringstream ss;
 
     if( sync_bit_count == 0 )
     {
@@ -117,7 +113,7 @@ bool ll_analyzer::unsynced()
             bit_rate = channel->GetSampleOfNextEdge() - channel->GetSampleNumber();
             mResults->AddMarker( sync_start + ( bit_rate / 2 ), AnalyzerResults::Start, mSettings->mInputChannel );
             sync_bit_count = 1;
-            // ss.str( "" );
+            //ss.str( "" );
         }
         else
         {
@@ -128,20 +124,20 @@ bool ll_analyzer::unsynced()
     else if( sync_bit_count < 8 )
     {
         // Check the widths of subsequent single wide-bits
-        FrameFlags valid = FLAG_DATA; // Valid( ( sync_bit_count & 0x01 ) ? BIT_HIGH : BIT_LOW );
+        FrameFlags valid = FLAG_DATA; //Valid( ( sync_bit_count & 0x01 ) ? BIT_HIGH : BIT_LOW );
         switch( valid )
         {
         case FLAG_IDLE:
-            // ss << "(IDLE_NOT_SYNC)";
+            //ss << "(IDLE_NOT_SYNC)";
             break;
         case FLAG_BREAK:
-            // ss << "(BREAK_NOT_SYNC)";
+            //ss << "(BREAK_NOT_SYNC)";
             break;
         case FLAG_NARROW:
-            // ss << "(NARROW_NOT_SYNC)";
+            //ss << "(NARROW_NOT_SYNC)";
             break;
         case FLAG_WRONG_BIT:
-            // ss << "(WRONG_BIT_SYNC)";
+            //ss << "(WRONG_BIT_SYNC)";
             break;
         default:
             mResults->AddMarker( channel->GetSampleNumber() + ( bit_rate / 2 ), AnalyzerResults::Dot, mSettings->mInputChannel );
@@ -151,20 +147,20 @@ bool ll_analyzer::unsynced()
     }
     else if( sync_bit_count == 8 )
     {
-        FrameFlags valid = FLAG_DATA; // Valid( BIT_LOW, bit_rate * 2 );
+        FrameFlags valid = FLAG_DATA; //Valid( BIT_LOW, bit_rate * 2 );
         switch( valid )
         {
         case FLAG_IDLE:
-            // ss << "(IDLE_NOT_SYNC)";
+            //ss << "(IDLE_NOT_SYNC)";
             break;
         case FLAG_BREAK:
-            // ss << "(BREAK_NOT_SYNC)";
+            //ss << "(BREAK_NOT_SYNC)";
             break;
         case FLAG_NARROW:
-            // ss << "(NARROW_NOT_SYNC)";
+            //ss << "(NARROW_NOT_SYNC)";
             break;
         case FLAG_WRONG_BIT:
-            // ss << "(WRONG_BIT_SYNC)";
+            //ss << "(WRONG_BIT_SYNC)";
             break;
         default:
             mResults->AddMarker( channel->GetSampleNumber() + ( bit_rate / 2 ), AnalyzerResults::Dot, mSettings->mInputChannel );
@@ -176,21 +172,21 @@ bool ll_analyzer::unsynced()
     else
     {
         float baud;
-        FrameFlags valid = FLAG_DATA; // Valid( BIT_HIGH, bit_rate * 2 );
+        FrameFlags valid = FLAG_DATA; //Valid( BIT_HIGH, bit_rate * 2 );
 
         switch( valid )
         {
         case FLAG_IDLE:
-            // ss << "(IDLE_NOT_SYNC)";
+            //ss << "(IDLE_NOT_SYNC)";
             break;
         case FLAG_BREAK:
-            // ss << "(BREAK_NOT_SYNC)";
+            //ss << "(BREAK_NOT_SYNC)";
             break;
         case FLAG_NARROW:
-            // ss << "(NARROW_NOT_SYNC)";
+            //ss << "(NARROW_NOT_SYNC)";
             break;
         case FLAG_WRONG_BIT:
-            // ss << "(WRONG_BIT_SYNC)";
+            //ss << "(WRONG_BIT_SYNC)";
             break;
         default:
             // Add Markers
@@ -201,12 +197,12 @@ bool ll_analyzer::unsynced()
             // Add Baud Rate
             U64 bit_rate = ( channel->GetSampleNumber() - sync_start ) / 10;
             baud = ( this->GetSampleRate() / bit_rate );
-            // ss << "(Baud Rate: " << baud << ")";
+            //ss << "(Baud Rate: " << baud << ")";
 
             channel->Advance( bit_rate );
 
             // Identify it
-            // Identify( sync_start, "SYNC", FLAG_SYNC, 0x55, ss.str().c_str() );
+            //Identify( sync_start, "SYNC", FLAG_SYNC, 0x55, ss.str().c_str() );
             Identify( sync_start, "SYNC", FLAG_SYNC, 0x55 );
 
             // We are no longer unsynced

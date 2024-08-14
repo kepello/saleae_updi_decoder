@@ -1,5 +1,3 @@
-from enum import IntEnum, Enum
-
 OPCODES  = [
     {
         "name"      : 'BREAK',
