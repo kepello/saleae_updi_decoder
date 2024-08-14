@@ -7,7 +7,7 @@
   "extensions": {
     "UPDI Analyzer": {
       "type": "HighLevelAnalyzer",
-      "entryPoint": "HighLevelAnalyzer.Hla"
+      "entryPoint": "updi.hla"
     }
   }
 }

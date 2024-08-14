@@ -2,11 +2,31 @@
 #define ANALYZER_H
 
 #ifndef LOGIC2
-  #define LOGIC2
+#define LOGIC2
 #endif
 
 #include <Analyzer.h>
 #include "ll_results.h"
+
+enum updi_state
+{
+    SYNC
+};
+
+enum FrameFlags
+{
+    FLAG_NONE,
+    FLAG_IDLE,
+    FLAG_BREAK,
+    FLAG_SYNC,
+    FLAG_DATA,
+    FLAG_ACK,
+    FLAG_WRONG_BIT,
+    FLAG_WIDE,
+    FLAG_NARROW,
+    FLAG_START,
+    FLAG_RATE
+};
 
 class settings;
 class ll_analyzer : public Analyzer2
@@ -23,6 +43,15 @@ class ll_analyzer : public Analyzer2
 
     virtual const char* GetAnalyzerName() const;
     virtual bool NeedsRerun();
+    bool unsynced();
+    bool synced();
+    bool decode( U8 byte );
+    bool Valid( BitState bit, U64 width );
+    U64 CurrentWidth();
+    U64 ByteCount;
+    void Identify( U64 start, U64 end, const char* note, FrameFlags flag = FLAG_NONE, int value = 0);
+    void Identify( const char* note, FrameFlags flag = FLAG_NONE, int value = 0 );
+    void Identify( U64 start, const char* note, FrameFlags flag = FLAG_NONE, int value = 0 );
 
 #pragma warning( push )
 #pragma warning(                                                                                                                           \
@@ -34,7 +63,11 @@ class ll_analyzer : public Analyzer2
   protected: // vars
     std::unique_ptr<ll_settings> mSettings;
     std::unique_ptr<ll_results> mResults;
-    AnalyzerChannelData* mBits;
+    AnalyzerChannelData* channel;
+
+    // Serial analysis vars:
+    U32 mSampleRateHz;
+    U64 bit_rate;
 
 #pragma warning( pop )
 };
