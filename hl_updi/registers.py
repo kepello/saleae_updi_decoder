@@ -2,164 +2,334 @@ REGISTERS = [
     { 
         "number"    : 0x00,
         "name"      : 'STATUSA',
-        "values"    : {
-            "mask"      : 0b00001111
-        }
+        "components"    :  [ 
+            { 
+                "mask"      : 0b11110000,
+                "shift"     : 4,
+                "name"      : "UPDIREC"
+            },
+            {
+                "bits"       : [3,2,1,0]
+            }
+        ]
     },
+    { 
+        "number"    : 0x01,
+        "name"      : 'STATUSB',
+        "components"    :  [ 
+            {
+                "bits"      : [7,6,5,4,3]
+            },
+            { 
+                "name"      : "PESIG",
+                "mask"      : 0b00000111,
+                "values"    : { 
+                    0x00 : "No Error"  ,
+                    0x01 : "Parity Error" ,
+                    0x02 : "Frame Error" ,
+                    0x03 : "Access Layer Timeout Layer" ,
+                    0x04 : "Clock Recovery Error" ,
+                    0x05 : "Reserved" ,
+                    0x06 : "Bus Error" ,
+                    0x07 : "Contention Error" 
+                }
+            } ,
 
+        ]
+    },
+    { 
+        "number"    : 0x02,
+        "name"      : 'CTRLA',
+        "components"    : [ 
+            {
+                "name"      : "IBDLY",
+                "bit"       : 7,
+                "values"    : { 
+                    0 : "Disabled" , 
+                    1 : "Enabled"  
+                }
+            },
+            {
+                "bit"       : 6
+            },
+            {
+                "name"      : "PARD",
+                "bit"       : 5,
+                "values"    : {
+                    0 : 'Enabled',
+                    1 : 'Disabled'
+                }
+            },
+            {
+                "name"      : "DTD",
+                "bit"       : 4,
+                "values"    : {
+                    0 : 'Enabled',
+                    0 : 'Disabled'
+                }
+            },
+            {
+                "name"      : "RSD",
+                "bit"       : 3,
+                "values"    : {
+                    0 : 'Enabled',
+                    1 : 'Disabled'
+                }
+            },
+            {
+                "name"      : "GTVAL",
+                "mask"      : 0x00000111,
+                "values"    : {
+                    0 : '128 Cycles',
+                    1 : '64 Cycles',
+                    2 : '32 Cycles',
+                    3 : '16 Cycles',
+                    4 : '8 Cycles',
+                    5 : '4 Cycles',
+                    6 : '2 Cycles',
+                    7 : 'RESERVED'
+                }
+            }
+        ]
+    },    
+    { 
+        "number"    : 0x03,
+        "name"      : 'CTRLB',
+        "components"    : [ 
+            {
+                "bits"      : [7,6,5]
+            },
+            {
+                "name"      : "NAKDIS",
+                "bit"       : 4,
+                "values"    : { 
+                    0 : "Enabled" , 
+                    1 : "Disabled"  
+                }
+            },
+            {
+                "name"      : "CCDETDIS",
+                "bit"       : 3,
+                "values"    : { 
+                    0 : "Enabled" , 
+                    1 : "Disabled"  
+                }
+            },
+            {
+                "name"      : "UPDIDIS",
+                "bit"       : 2,
+                "values"    : { 
+                    0 : "Enabled" , 
+                    1 : "Disabled"  
+                }
+            },
+            {
+                "bits"      : [1,0]
+            }
+        ]
+    },    
+    { 
+        "number"    : 0x04,
+        "name"      : 'ASI_OCD_CTRLA',
+        "components"    : [
+            {
+                "bit"   : 7,
+                "name"  : "SOR_DIR"
+            },
+            {
+                "bits"  : [6,5,4,3,2]
+            },
+            {
+                "bit"   : 1,
+                "name"  : "RUN"
+            },
+            {
+                "bit"   : 0,
+                "name"  : "STOP"
+            },
+        ]
+    },    
+    { 
+        "number"    : 0x05,
+        "name"      : 'ASI_OCD_STATUS',
+        "components"    : [
+            {
+                "bit"   : 4,
+                "name"  : 'OCDMV'
+            },
+            {
+                "bit"   : 0,
+                "name"  : 'STOPPED'
+            }
+        ]
+    },     
+    { 
+        "number"    : 0x06,
+        "name"      : 'RESERVED_06X',
+    },    
+    { 
+        "number"    : 0x07,
+        "name"      : 'ASI_KEY_STATUS',
+        "components"    : [ 
+            {
+                "bits"      : [7,6,5]
+            },
+            {
+                "name"      : "UROWWRITE",
+                "bit"       : 4,
+                "values"    : { 
+                    0 : "Unsuccess" , 
+                    1 : "Success"  
+                }
+            },
+            {
+                "name"      : "NVMPROG",
+                "bit"       : 3,
+                "values"    : { 
+                    0 : "Unsuccess" , 
+                    1 : "Success"  
+                }
+            },
+            {
+                "name"      : "CHIPERASE",
+                "bit"       : 2,
+                "values"    : { 
+                    0 : "Unsuccess" , 
+                    1 : "Success"  
+                }
+            },
+            {
+                "bits"      : [1,0]
+            }
+        ]
+    },    
+    { 
+        "number"        : 0x08,
+        "name"          : 'ASI_RESET_REQ',
+        "values"        : {
+            0x00: "RUN",
+            0x59: "RESET"
+        }
+    },    
+    { 
+        "number"        : 0x09,
+        "name"          : 'ASI_CTRLA',
+        "components"    : [
+            {
+                "bits"  : [7,6,5,4,3,2]
+            },
+            {
+                "name"      : "UPDICLKSEL",
+                "mask"      : 0b00000011,
+                "values"    : {
+                    0x00 : "Reserved",
+                    0x01 : "16Mhz UPDI clock",
+                    0x02 : "8Mhz UPDI clock",
+                    0x03 : "4Mhz UPDI clock"
+                }
+            }
+        ]
+    },    
+    { 
+        "number"    : 0x0A,
+        "name"      : 'ASI_SYS_CTRLA',
+        "components"    : [
+            {
+                "bits"  :   [7,6,5,4,3,2]
+            },
+            {
+                "bit"       : 1,
+                "name"      : "UROWWRITE_FINAL",
+            },
+            {
+                "bit"       : 0,
+                "name"      : "CLKREQ"
+            }
+
+        ]   
+    },    
+    { 
+        "number"    : 0x0B,
+        "name"      : 'ASI_SYS_STATUS',
+        "components"    : [
+            {
+                "bits"      : [7,6]
+            },
+            {
+                "bit"       : 5,
+                "name"      : "RSTSYS",
+                "values"    : {
+                    0 : "Not Reset State",
+                    1 : "Reset State"
+                }
+            },
+            
+            {
+                "bit"       : 4,
+                "name"      : "INSLEEP",
+                "values"    : {
+                    0 : "Sleep Mode",
+                    1 : "Not Sleep Mode"
+                }
+            },
+            {
+                "bit"       : 3,
+                "name"      : "NVMPROG",
+                "values"    : {
+                    0 : "Can Program NVM",
+                    1 : "Can't Program NVM"
+                }
+            },
+            {
+                "bit"       : 2,
+                "name"      : "UROWPROG",
+                "values"    : {
+                    0 : "Can Program UROW",
+                    1 : "Can't Program UROW"
+                }
+            },
+            {
+                "bit"       : 1
+            },
+            {
+                "bit"       : 0,
+                "name"      : "LOCKSTATUS",
+                "values"    : {
+                    0 : "NVM Locked",
+                    1 : "NVM Not Locked"
+                }
+            },
+        ]
+    },    
+    { 
+        "number"    : 0x0C,
+        "name"      : 'ASI_CRC_STATUS',
+        "components"    : [
+            {
+                "bits"      : [7,5,5,4,3]
+            },
+            {
+                "name"      : "CRC_STATUS",
+                "mask"      : 0b00000111,
+                "values"    : {
+                    0x00 : "CRC Not Enabled",
+                    0x01 : "CRC Enabled, Busy",
+                    0x02 : "CRC Enabled, Done with OK signature",
+                    0x03 : "Reserved",
+                    0x04 : "CRC Enabled, Done with FAILED Signature",
+                    0x05 : "Reserved",
+                    0x06 : "Reserved",
+                    0x07 : "Reserved"
+                }
+            }
+        ]
+
+    },
+    {
+        "number"    : 0x0D,
+        "name"      : 'ASI_OCD_MESSAGE'
+    }
 ]
-
-
-    # def CSRegister(self, number, value, direction='='):
-    #     mnemonics  = ''
-    #     if number == 0x00:
-    #         rev = value>>4
-    #         mnemonics = 'STATUSA %s 0x%02X (UPDIREV=0x%02X)' % (direction,value,rev)
-    #     elif number == 0x01:
-    #         mnemonics = 'STATUSB %s 0x%02X (PESIG=' % (direction,value)
-    #         if value == 0x00:
-    #             mnemonics += 'NO_ERROR'
-    #         elif value == 0x01:
-    #             mnemonics += 'PARITY_ERROR'
-    #         elif value == 0x02:
-    #             mnemonics += 'FRAME_ERROR'            
-    #         elif value == 0x03:
-    #             mnemonics += 'ACCESS_LAYER_TIMEOUT'            
-    #         elif value == 0x04:
-    #             mnemonics += 'CLOCK_RECOVERY_ERROR'
-    #         elif value == 0x05:
-    #             mnemonics += 'RESERVED'
-    #         elif value == 0x06:
-    #             mnemonics += 'BUS_ERROR'
-    #         elif value == 0x07:
-    #             mnemonics += 'CONTENTION_ERROR'
-    #     elif number == 0x02:
-    #         mnemonics = 'CTRLA %s 0x%02X (' % (direction,value)
-    #         if (value & 0x80):
-    #             mnemonics += 'IBDLY '
-    #         if (value & 0x20):
-    #             mnemonics += 'PARD '
-    #         if (value & 0x10):
-    #             mnemonics += 'DTD '
-    #         if (value & 0x08):
-    #             mnemonics += 'RSD '
-    #         gtv = value & 0x07
-    #         mnemonics += 'GTVAL='
-    #         if (gtv == 0x00):
-    #             mnemonics += '128_CYCLE'
-    #         elif (gtv == 0x01):
-    #             mnemonics += '64_CYCLE'
-    #         elif (gtv == 0x02):
-    #             mnemonics += '32_CYCLE'
-    #         elif (gtv == 0x03):
-    #             mnemonics += '16_CYCLE'
-    #         elif (gtv == 0x04):
-    #             mnemonics += '8_CYCLE'
-    #         elif (gtv == 0x05):
-    #             mnemonics += '4_CYCLE'
-    #         elif (gtv == 0x06):
-    #             mnemonics += '2_CYCLE'
-    #         elif (gtv == 0x07):
-    #             mnemonics += 'RESERVED'
-    #         mnemonics += ')'
-    #     elif number == 0x03:
-    #         mnemonics = 'CTRLB %s 0x%02X (' % (direction,value)
-    #         if (value & 0x8):
-    #             mnemonics += 'NACKDIS '
-    #         if (value & 0x04):
-    #             mnemonics += 'CCDETDIS '
-    #         if (value & 0x02):
-    #             mnemonics += 'UPDIDIS'
-    #         mnemonics= mnemonics.strip() + ')'
-    #     elif number == 0x04:
-    #         mnemonics = 'ASI_OCD_CTRLA %s 0x%02X (' % (direction, value);
-    #         if (value & 0x80):
-    #             mnemonics += 'SOR_DIR '
-    #         if (value & 0x02): 
-    #             mnemonics += 'RUN '
-    #         if (value & 0x01):
-    #             mnemonics += 'STOP'
-    #         mnemonics= mnemonics.strip() + ')'
-    #     elif number == 0x05:
-    #         # Requires OCDMV
-    #         mnemonics = 'ASI_OCD_STATUS %s (0x%02X (' % (direction, value);
-    #         if (value & 0x10):
-    #             mnemonics += 'OCDMV '
-    #         if (value & 0x01):
-    #             mnemonics += 'STOPPED'
-    #         mnemonics = mnemonics.strip() + ')'
-    #     elif number == 0x06: 
-    #         mnemonics = 'RESERVED_6 %s 0x%02X' % (direction, value)    
-    #     elif number == 0x07:
-    #         mnemonics = 'ASI_KEY_STATUS %s 0x%02X (' % (direction,value)
-    #         if (value & 0x20):
-    #             mnemonics += 'UROWWRITE '
-    #         if (value & 0x10):
-    #             mnemonics += 'NVMPROG '
-    #         if (value & 0x08):
-    #             mnemonics += 'CHIPERASE'
-    #         mnemonics = mnemonics.strip() + ')'
-    #     elif number == 0x08:
-    #         mnemonics = 'ASI_RESET_REQ %s 0x%02X (' % (direction, value)
-    #         if (value == 0x00):
-    #             mnemonics += 'RUN'
-    #         elif (value == 0x59):
-    #             mnemonics += 'RESET'
-    #         else:
-    #             mnemonics += 'CLEARED'
-    #         mnemonics += ')'
-    #     elif number == 0x09:
-    #         clk = value & 0x03
-    #         mnemonics = 'ASI_CTRLA %s 0x%02X (UPDICLKSEL=' % (direction, value)
-    #         if (clk == 0x00):
-    #             mnemonics += 'RESERVED_UPDICLK'
-    #         elif (clk == 0x01):
-    #             mnemonics += '16MHZ_UPDICLK'
-    #         elif (clk == 0x02):
-    #             mnemonics += '8MHZ_UPDICLK'            
-    #         elif (clk == 0x03):
-    #             mnemonics += '4MHZ_UPDICLK'
-    #         mnemonics += ')'
-    #     elif number == 0x0A:
-    #         mnemonics = 'ASI_SYS_CTRLA %s 0x%02X (not yet described)' % (direction, value)
-    #     elif number == 0x0B:
-    #         mnemonics = 'ASI_SYS_STATUS %s 0x%02X (' % (direction,value)
-    #         if (value & 0x80):
-    #             mnemonics += 'UNKNOWN_BIT_8 '
-    #         if (value & 0x40):
-    #             mnemonics += 'UNKNOWN_BIT_7 '    
-    #         if (value & 0x02): 
-    #             mnemonics += 'UNKNOWN_BIT_2 '           
-    #         if (value & 0x20):
-    #             mnemonics += 'RSTSYS '
-    #         if (value & 0x10):
-    #             mnemonics += 'INSLEEP '
-    #         if (value & 0x08):
-    #             mnemonics += 'NVMPROG '
-    #         if (value & 0x04):
-    #             mnemonics += 'UROWPROG '
-    #         if (value & 0x01):
-    #             mnemonics += 'NVMLOCK '
-    #         mnemonics = mnemonics.strip() + ')'
-    #     elif number == 0x0C:
-    #         crc = value & 0x03
-    #         mnemonics = 'ASI_CRC_STATUS %s 0x%02X (CRC_STATUS=0x%02X ' % (direction,value,crc)
-    #         if (crc == 1):
-    #             mnemonics += 'NOT_ENABLED'
-    #         elif (crc == 2):
-    #             mnemonics += 'BUSY'
-    #         elif (crc == 3):
-    #             mnemonics += 'OK'
-    #         elif (crc == 4):
-    #             mnemonics += 'FAILED'
-    #         else:
-    #             mnemonics += 'RESERVED'
-    #         mnemonics += ')'
-    #     elif number == 0x0D:
-    #         mnemonics = 'ASI_OCD_MESSAGE %s 0x%02X (' % (direction, value)
-    #     else:
-    #         mnemonics = 'UNKNOWN_CS_REGISTER %s 0x%02X' % (direction, value)
-    #     return mnemonics
 
 
 

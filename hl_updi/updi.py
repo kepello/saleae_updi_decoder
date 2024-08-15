@@ -124,7 +124,6 @@ class hla(HighLevelAnalyzer):
     # Decode function, called by Logic 2 software for each byte
     def decode(self, frame:AnalyzerFrame):
 
-
         # Initialize our results array
         self.frames=[]
 
@@ -228,7 +227,7 @@ class hla(HighLevelAnalyzer):
                     self.repeat_count = self.data.toTotal()
                 elif ('register' in self.recognized_opcode):
                     # Register operation (LDCS, STCS operation data)
-                    self.mnemonic += ' 0x%02X %s %s' % (self.cs, self.recognized_opcode['operator'], self.data.toHexString())
+                    self.mnemonic += ' ' + self.register(self.cs, self.recognized_opcode['operator'], self.data[0])
                 elif ('address' in self.recognized_opcode) and not ('data' in self.recognized_opcode):
                     # Setting Pointer to Address (LD, ST)
                     self.mnemonic += ' %s %s' % (self.recognized_opcode['operator'], self.address.toHexString())
@@ -268,6 +267,65 @@ class hla(HighLevelAnalyzer):
                     self.state = States.Start
         return self.frames
     
+
+    # Decode the CS register names and values
+    def register(self, cs, operator, data):
+        
+        # Defaults if no definition is found
+        register_name = '(%02X) UNDEFINED ' % cs
+        register_parts = []
+
+        # Look up the register
+        for register in REGISTERS:
+
+            # See if our value matches the defined register number
+            if 'number' in register and register['number'] == cs:
+
+                # Matched, use the defiend name
+                if 'name' in register:
+                    register_name = '0x%02X (%s)' % (cs, register['name'])
+
+                # Check if this register has one or more defined portions
+                if 'components' in register:
+                    for component in register['components']:
+                        
+                        # Handle groups of bits
+                        if ('bits') in component:
+                            for bit in component['bits']:
+                                component_value = ((1 << bit) & data) >> (bit)
+                                component_name = component['name'] if 'name' in component else 'Bit%d' % bit
+                                register_parts.append('%s %s' % (component_name, 'on' if component_value>0 else 'off' ))
+
+                        # Handle individual bit
+                        elif ('bit' in component):
+                            component_value = ((1 << component['bit']) & data) >> (component['bit'])
+                            if 'values' in component:
+                                component_definition = component['values'][component_value]
+                            else:
+                                component_definition = 'on' if component_value>0 else 'off'
+                            component_name = component['name'] if 'name' in component else 'Bit%d' % component['bit']
+                            register_parts.append('%s %s' % (component_name, component_definition))
+
+                        # Handle masked amounts
+                        elif ('mask' in component):
+                            component_value = (data & component['mask']) >> (component['shift'] if 'shift' in component else 0)
+                            if ('values' in component):
+                                component_definition = component['values'][component_value]
+                            else:
+                                component_definition = '0x%02X' % component_value
+                            component_name = component['name'] if 'name' in component else 'Unnamed Mask %02X' % component['mask']
+                            register_parts.append('%s %s' % (component_name, component_definition ))
+
+                        # Assume Full byte value
+                        else:
+                            component_value = data
+                            component_name = component['name'] if 'name' in component else 'Register %02X' % cs
+                            register_parts.append('%s 0x%02X' % (component_name, component_value ))
+
+                break
+        
+        return ('%s %s 0x%02X' % (register_name, operator, data) + (' (%s)' % ', '.join(register_parts) if len(register_parts) else ''))
+
     def MemoryMap(self, address, value, direction='='):
         if address <= 0x003F:
             register = ''
