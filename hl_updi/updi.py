@@ -1,6 +1,6 @@
 from saleae.analyzers import HighLevelAnalyzer, AnalyzerFrame, ChoicesSetting
 from enum import IntEnum, Enum
-from opcodes import OPCODES
+from opcodes import OPCODES, ADDRESS_SIZE, DATA_SIZE, KEY_SIZE
 from registers import REGISTERS
 from dataarray import DataArray
 
@@ -16,7 +16,7 @@ class States(Enum):
 # High level analyzers must subclass the HighLevelAnalyzer class.
 class hla(HighLevelAnalyzer):
 
-    DisplayHex = ChoicesSetting(['No', 'Yes'])
+    ShowUnknownBits = ChoicesSetting(['No', 'Yes'])
 
     # Result Types supported
     result_types = {
@@ -31,6 +31,7 @@ class hla(HighLevelAnalyzer):
 
         self.start_time = 0  
         self.mnemonic = ''
+        self.pseudocode = ''
         self.payload:DataArray = DataArray()
         self.opcode_start = 0
         self.frames = []
@@ -41,57 +42,17 @@ class hla(HighLevelAnalyzer):
         self.repeat_count= 0
         self.recognized_opcode = None
         self.comments = []
+        self.unknown_bits = True if self.ShowUnknownBits == 'Yes' else False
 
-
-    def gethex(self):
-        h = self.payload.toHexString(isSpace=True)
+    def addframe(self, mnemonic, pseudocode, end_time, comments=[]):    
+        hex = self.payload.toHexString(isSpace=True)
         self.opcode_start += len(self.payload)
         self.payload = DataArray()
-        return h
-    
-    def address_size(self, address_part, byte):
-        value = (byte & 0b1100) >> 2 if (address_part == "A") else (byte & 0b0011)
-        if (value == 0x00):
-            return 1 # (1,'Byte')
-        elif (value == 0x01):
-            return 2 #(2,'Word')
-        elif (value == 0x02):
-            return 3 #(3,'3 Bytes')
-        else:
-            return 4 #(0,'Reserved')    
-
-    def data_size(self, address_part, byte):
-        if (address_part == '1'):
-            return 1
-        else:
-            value = (byte & 0b0011)
-            if (value == 0x00):
-                return 1 #(1,'Byte')
-            elif (value == 0x01):
-                return 2 # (2,'Word')
-            else:
-                return 0 #(0,'Reserved') 
-    
-    def key_size(self, byte):
-        value = (byte & 0b11)
-        if (value == 0x00):
-            return 8 
-        elif (value == 0x01):
-            return 16 
-        elif (value == 0x02):
-            return 32
-        else:
-            return 32   # 0x03 is Described as RESERVED in the documentation, observation shows a 32 byte result
-        
-    def register_info(self, byte):
-        return(byte & 0b1111)
-
-    def addframe(self, mnemonic, end_time, comments=[]):    
-        hex = self.gethex()
 
         # Display the Frame
         self.frames.append(AnalyzerFrame('UPDI', self.start_time, end_time, {
             'count' : '%04X' % self.opcode_start,
+            'pseudocode' : pseudocode,
             'data' : hex,
             'command' : mnemonic,
             'comments' : ', '.join(comments) if len(comments)>0 else ''
@@ -112,8 +73,9 @@ class hla(HighLevelAnalyzer):
             # IDLE event
             self.comments.append('(IDLE)')
             self.start_time = frame.start_time
-            self.addframe("IDLE", frame.end_time)
+            self.addframe("IDLE", "", frame.end_time)
             self.mnemonic = ''
+            self.pseudocode = ''
             self.comments = []
             self.start_time = 0
             return self.frames
@@ -121,8 +83,9 @@ class hla(HighLevelAnalyzer):
             # BREAK event
             self.comments.append('(BREAK)')
             self.start_time = frame.start_time
-            self.addframe("BREAK", frame.end_time)
+            self.addframe("BREAK", "", frame.end_time)
             self.mnemonic = ''
+            self.pseudocode = ''
             self.comments = []
             self.start_time = 0
             return self.frames 
@@ -154,17 +117,17 @@ class hla(HighLevelAnalyzer):
         if (self.recognized_opcode != None):
             # Matched, what else do we need for this opcode?
             if ('address' in self.recognized_opcode):
-                self.address_count = self.address_size(self.recognized_opcode['address'], byte)
+                self.address_count = ADDRESS_SIZE[(byte & 0b1100) >> 2 if self.recognized_opcode['address'] == 'A' else (byte & 0b0011)]
             if ('data' in self.recognized_opcode):
-                self.data_count = self.data_size(self.recognized_opcode['data'],byte)
+                self.data_count = DATA_SIZE[(byte & 0b0011) if not self.recognized_opcode['data'] == '1' else 1]
             if ('key' in self.recognized_opcode):
-                self.data_count = self.key_size(byte)
+                self.data_count = KEY_SIZE[byte & 0b11]
             if ('register' in self.recognized_opcode):
-                self.cs = self.register_info(byte)                    
+                self.cs = byte & 0b1111                  
             self.state = States.Address
         else:
             # No match
-            self.addframe('INVALID_OPCODE %02X' % byte, frame.end_time)
+            self.addframe('INVALID_OPCODE 0x%02X' % byte, "Invalid Command 0x%02X", frame.end_time)
             self.state = States.Start
             
         self.last_opcode_byte = byte
@@ -204,36 +167,61 @@ class hla(HighLevelAnalyzer):
             self.state = States.Complete
 
     def complete_command(self, byte, frame):
-        # No more data, so that means we have completed the command
-        self.mnemonic += self.recognized_opcode['name']
 
-        if ('operator' in self.recognized_opcode) and (self.recognized_opcode['operator']=='*'):
-            # REPEAT
-            self.mnemonic += ' %s %s' % (self.recognized_opcode['operator'], self.data.toHexString())
+        operator = self.recognized_opcode['operator']
+        command = self.recognized_opcode['name']
+        self.mnemonic += command
+        self.pseudocode = command
+
+        if command =='REPEAT':
             self.repeat_count = self.data.toTotal() + 1
-        elif ('register' in self.recognized_opcode):
-            # LDCS, STCS 
-            self.mnemonic += ' ' + self.register(self.cs, self.recognized_opcode['operator'], self.data[0])
-        elif ('address' in self.recognized_opcode) and not ('data' in self.recognized_opcode):
-            # LD, ST PRT = 
-            self.mnemonic += ' %s %s' % (self.recognized_opcode['operator'], self.address.toHexString())
-        elif ('data' in self.recognized_opcode) and not ('address' in self.recognized_opcode):
-            # LD, ST *(PTR/PTR++)
-            self.mnemonic += ' %s %s' % (self.recognized_opcode['operator'], self.data.toHexString())
-        elif ('key' in self.recognized_opcode) and (self.recognized_opcode['operator'] == '='):
-            # Setting KEY
-            self.mnemonic += ' KEY %s %s' % (self.recognized_opcode['operator'], self.data.toAsciiString())
-        elif ('key' in self.recognized_opcode) and (self.recognized_opcode['operator'] == '=='):
-            # Getting SIB
-            self.mnemonic += ' SIB %s %s' % (self.recognized_opcode['operator'], self.data.toAsciiString())
-        elif ('data' in self.recognized_opcode) and ('address' in self.recognized_opcode):
-            # Address and data (LDS, STS)
-            self.mnemonic += ' %s %s %s' % (self.address.toHexString(),self.recognized_opcode['operator'] , self.data.toHexString())
-        
-        if (self.recognized_opcode['name']!='REPEAT') and (self.repeat_count > 0):
+            self.mnemonic += ' %s %s' % (operator, self.data.toHexString())
+            self.pseudocode = 'Repeat next command %d times' % self.repeat_count
+        elif command == 'LDCS':
+            name = self.register_name(self.cs)
+            self.mnemonic += ' 0x%02X %s 0x%02X' % (self.cs, operator, self.data[0])
+            self.pseudocode = '%s %s %s' % (name, operator, self.register_data(self.cs, self.data[0]))
+        elif command == 'STCS':
+            name = self.register_name(self.cs)
+            self.mnemonic += ' 0x%02X %s 0x%02X' % (self.cs, operator, self.data[0])
+            self.pseudocode = '%s %s %s' % (name, operator, self.register_data(self.cs, self.data[0]))
+        elif command == 'LD load_ptr':
+            self.mnemonic += ' %s %s' % (operator, self.address.toHexString())
+            self.pseudocode = 'load_pointer %s %s' % (operator, self.address.toHexString())
+        elif command == 'LD *(ptr)':
+            self.mnemonic += ' %s %s' % (operator, self.data.toHexString())
+            self.pseudocode = '*(load_pointer) % %s' % (operator,self.data.toHexString())
+        elif command == 'LD *(ptr++)':
+            self.mnemonic += ' %s %s' % (operator, self.data.toHexString())
+            self.pseudocode = '*(load_pointer++) %s %s' % (operator, self.data.toHexString())
+        elif command == 'ST ptr':
+            self.mnemonic += ' %s %s' % (operator, self.address.toHexString())
+            self.pseudocode ='store_pointer = %s' % self.address.toHexString()
+        elif command == 'ST *(ptr)':
+            self.mnemonic += ' %s %s' % (operator, self.data.toHexString())
+            self.pseudocode = '*(store_pointer) %s %s' % (operator, self.data.toHexString())
+        elif command == 'ST *(ptr++)':
+            self.mnemonic += ' %s %s' % (operator, self.data.toHexString())
+            self.pseudocode = '*(store_pointer++) %s %s' % (operator, self.data.toHexString())
+        elif command == 'KEY':
+            self.mnemonic += ' KEY %s %s' % (operator, self.data.toAsciiString())
+            self.pseudocode = 'KEY %s %s' % (operator, self.data.toAsciiString())
+        elif command == 'KEY SIB':
+            self.mnemonic += ' SIB %s %s' % (operator, self.data.toAsciiString())
+            self.pseudocode = 'SIB %s %s' % (operator, self.data.toAsciiString())
+        elif command == 'LDS':
+            self.mnemonic += ' %s %s %s' % (self.address.toHexString(), operator , self.data.toHexString())
+            self.pseudocode = '*(%s) %s %s' % (self.address.toHexString(), operator, self.data.toHexString())
+        elif command == 'STS':
+            self.mnemonic += ' %s %s %s' % (self.address.toHexString(), operator , self.data.toHexString())
+            self.pseudocode = '*(%s) %s %s' % (self.address.toHexString(), operator, self.data.toHexString())
+        else: 
+            self.mnemonic += 'UNKNOWN COMMAND'
+                
+        if (command!='REPEAT') and (self.repeat_count > 0):
             self.comments.append('(%d repeat(s) left)' % (self.repeat_count-1))
 
-        self.addframe(self.mnemonic, frame.end_time, self.comments)
+        self.addframe(self.mnemonic, self.pseudocode, frame.end_time, self.comments)
         
         self.mnemonic = ''
         self.comments = []
@@ -320,63 +308,74 @@ class hla(HighLevelAnalyzer):
 # Register Decoding
 ######################################################################################### 
 
-    # Decode the CS register names and values
-    def register(self, cs, operator, data):
-        
-        # Defaults if no definition is found
-        register_name = '(%02X) UNDEFINED ' % cs
-        register_parts = []
+    def register_definition(self, cs):
 
         # Look up the register
         for register in REGISTERS:
-
             # See if our value matches the defined register number
             if 'number' in register and register['number'] == cs:
+                return register
+        return None
 
-                # Matched, use the defiend name
-                if 'name' in register:
-                    register_name = '0x%02X (%s)' % (cs, register['name'])
+    def register_name(self, cs):
+        register = self.register_definition(cs)
+        return register['name'] if 'name' in register else ''
 
-                # Check if this register has one or more defined portions
-                if 'components' in register:
-                    for component in register['components']:
-                        
-                        # Handle groups of bits
-                        if ('bits') in component:
-                            for bit in component['bits']:
-                                component_value = ((1 << bit) & data) >> (bit)
-                                component_name = component['name'] if 'name' in component else 'Bit%d' % bit
-                                register_parts.append('%s %s' % (component_name, 'on' if component_value>0 else 'off' ))
-
-                        # Handle individual bit
-                        elif ('bit' in component):
-                            component_value = ((1 << component['bit']) & data) >> (component['bit'])
-                            if 'values' in component:
-                                component_definition = component['values'][component_value]
-                            else:
-                                component_definition = 'on' if component_value>0 else 'off'
-                            component_name = component['name'] if 'name' in component else 'Bit%d' % component['bit']
-                            register_parts.append('%s %s' % (component_name, component_definition))
-
-                        # Handle masked amounts
-                        elif ('mask' in component):
-                            component_value = (data & component['mask']) >> (component['shift'] if 'shift' in component else 0)
-                            if ('values' in component):
-                                component_definition = component['values'][component_value]
-                            else:
-                                component_definition = '0x%02X' % component_value
-                            component_name = component['name'] if 'name' in component else 'Unnamed Mask %02X' % component['mask']
-                            register_parts.append('%s %s' % (component_name, component_definition ))
-
-                        # Assume Full byte value
-                        else:
-                            component_value = data
-                            component_name = component['name'] if 'name' in component else 'Register %02X' % cs
-                            register_parts.append('%s 0x%02X' % (component_name, component_value ))
-
-                break
+    # Decode the CS register names and values
+    def register_data(self, cs, data):
         
-        return ('%s %s 0x%02X' % (register_name, operator, data) + (' (%s)' % ', '.join(register_parts) if len(register_parts) else ''))
+        register_parts = []
+
+        # Defaults if no definition is found
+        register = self.register_definition(cs)
+        if (register != None):
+
+            # Matched, use the defiend name
+            if 'name' in register:
+                register_name = '0x%02X (%s)' % (cs, register['name'])
+
+            # Check if this register has one or more defined portions
+            if 'components' in register:
+                for component in register['components']:
+                    
+                    # Handle groups of bits
+                    if 'bits' in component and self.unknown_bits==True:
+                        for bit in component['bits']:
+                            component_value = ((1 << bit) & data) >> (bit)
+                            component_name = component['name'] if 'name' in component else 'Bit%d' % bit
+                            register_parts.append('%s %s' % (component_name, 'on' if component_value>0 else 'off' ))
+
+                    # Handle individual bit
+                    elif ('bit' in component):
+                        component_value = ((1 << component['bit']) & data) >> (component['bit'])
+                        if 'values' in component:
+                            component_definition = component['values'][component_value]
+                        else:
+                            component_definition = 'on' if component_value>0 else 'off'
+                        component_name = component['name'] if 'name' in component else 'Bit%d' % component['bit']
+                        register_parts.append('%s %s' % (component_name, component_definition))
+
+                    # Handle masked amounts
+                    elif ('mask' in component):
+                        component_value = (data & component['mask']) >> (component['shift'] if 'shift' in component else 0)
+                        if ('values' in component):
+                            component_definition = component['values'][component_value]
+                        else:
+                            component_definition = '0x%02X' % component_value
+                        component_name = component['name'] if 'name' in component else 'Unnamed Mask %02X' % component['mask']
+                        register_parts.append('%s %s' % (component_name, component_definition ))
+
+            # Assume Full byte value
+            else:
+                if ('values' in register):
+                    component_definition = register['values'][data]
+                else:
+                    component_definition = '0x%02X' % data
+                component_name = register['name'] if 'name' in register else 'Register %02X' % cs
+                print('***FULL BYTE', component_name, component_definition, data)
+                register_parts.append('%s %s' % (component_name, component_definition ))
+
+        return (' ,'.join(register_parts))
 
 ######################################################################################### 
 # Memory Decoding
