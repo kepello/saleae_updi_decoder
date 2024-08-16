@@ -210,7 +210,7 @@ class hla(HighLevelAnalyzer):
         if ('operator' in self.recognized_opcode) and (self.recognized_opcode['operator']=='*'):
             # REPEAT
             self.mnemonic += ' %s %s' % (self.recognized_opcode['operator'], self.data.toHexString())
-            self.repeat_count = self.data.toTotal()
+            self.repeat_count = self.data.toTotal() + 1
         elif ('register' in self.recognized_opcode):
             # LDCS, STCS 
             self.mnemonic += ' ' + self.register(self.cs, self.recognized_opcode['operator'], self.data[0])

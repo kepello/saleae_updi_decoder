@@ -6,7 +6,7 @@ REGISTERS = [
             { 
                 "mask"      : 0b11110000,
                 "shift"     : 4,
-                "name"      : "UPDIREC"
+                "name"      : "UPDIREV"
             },
             {
                 "bits"       : [3,2,1,0]
