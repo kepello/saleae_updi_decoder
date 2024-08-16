@@ -177,42 +177,26 @@ class hla(HighLevelAnalyzer):
             self.repeat_count = self.data.toTotal() + 1
             self.mnemonic += ' %s %s' % (operator, self.data.toHexString())
             self.pseudocode = 'Repeat next command %d times' % self.repeat_count
-        elif command == 'LDCS':
+        elif command == 'LDCS' or command == 'STCS':
             name = self.register_name(self.cs)
             self.mnemonic += ' 0x%02X %s 0x%02X' % (self.cs, operator, self.data[0])
             self.pseudocode = '%s %s %s' % (name, operator, self.register_data(self.cs, self.data[0]))
-        elif command == 'STCS':
-            name = self.register_name(self.cs)
-            self.mnemonic += ' 0x%02X %s 0x%02X' % (self.cs, operator, self.data[0])
-            self.pseudocode = '%s %s %s' % (name, operator, self.register_data(self.cs, self.data[0]))
-        elif command == 'LD load_ptr':
+        elif command == 'LD ptr' or command == 'ST ptr':
             self.mnemonic += ' %s %s' % (operator, self.address.toHexString())
-            self.pseudocode = 'load_pointer %s %s' % (operator, self.address.toHexString())
-        elif command == 'LD *(ptr)':
+            self.pseudocode = 'pointer %s %s' % (operator, self.address.toHexString())
+        elif command == 'LD *(ptr)' or command == 'LD *(ptr)':
             self.mnemonic += ' %s %s' % (operator, self.data.toHexString())
-            self.pseudocode = '*(load_pointer) % %s' % (operator,self.data.toHexString())
-        elif command == 'LD *(ptr++)':
+            self.pseudocode = '*(ptr) % %s' % (operator,self.data.toHexString())
+        elif command == 'LD *(ptr++)' or command == 'ST *(ptr++)':
             self.mnemonic += ' %s %s' % (operator, self.data.toHexString())
-            self.pseudocode = '*(load_pointer++) %s %s' % (operator, self.data.toHexString())
-        elif command == 'ST ptr':
-            self.mnemonic += ' %s %s' % (operator, self.address.toHexString())
-            self.pseudocode ='store_pointer = %s' % self.address.toHexString()
-        elif command == 'ST *(ptr)':
-            self.mnemonic += ' %s %s' % (operator, self.data.toHexString())
-            self.pseudocode = '*(store_pointer) %s %s' % (operator, self.data.toHexString())
-        elif command == 'ST *(ptr++)':
-            self.mnemonic += ' %s %s' % (operator, self.data.toHexString())
-            self.pseudocode = '*(store_pointer++) %s %s' % (operator, self.data.toHexString())
+            self.pseudocode = '*(pointer++) %s %s' % (operator, self.data.toHexString())
         elif command == 'KEY':
             self.mnemonic += ' KEY %s %s' % (operator, self.data.toAsciiString())
             self.pseudocode = 'KEY %s %s' % (operator, self.data.toAsciiString())
         elif command == 'KEY SIB':
             self.mnemonic += ' SIB %s %s' % (operator, self.data.toAsciiString())
             self.pseudocode = 'SIB %s %s' % (operator, self.data.toAsciiString())
-        elif command == 'LDS':
-            self.mnemonic += ' %s %s %s' % (self.address.toHexString(), operator , self.data.toHexString())
-            self.pseudocode = '*(%s) %s %s' % (self.address.toHexString(), operator, self.data.toHexString())
-        elif command == 'STS':
+        elif command == 'LDS' or command == 'STS':
             self.mnemonic += ' %s %s %s' % (self.address.toHexString(), operator , self.data.toHexString())
             self.pseudocode = '*(%s) %s %s' % (self.address.toHexString(), operator, self.data.toHexString())
         else: 
@@ -372,7 +356,6 @@ class hla(HighLevelAnalyzer):
                 else:
                     component_definition = '0x%02X' % data
                 component_name = register['name'] if 'name' in register else 'Register %02X' % cs
-                print('***FULL BYTE', component_name, component_definition, data)
                 register_parts.append('%s %s' % (component_name, component_definition ))
 
         return (' ,'.join(register_parts))
