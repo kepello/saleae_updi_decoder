@@ -2,40 +2,17 @@ from saleae.analyzers import HighLevelAnalyzer, AnalyzerFrame, ChoicesSetting
 from enum import IntEnum, Enum
 from opcodes import OPCODES
 from registers import REGISTERS
+from dataarray import DataArray
 
 class States(Enum):
     Start =     1
-    Opcode = 2
+    Opcode =    2
     Address =   3
     Data =      4
     Repeat =    5
     Ack =       6
+    Complete =  7
 
-class DataArray(list):
-
-    def toHexString(self, isSpace=False):
-        hex = '0x'
-        for item in self:
-            if (isSpace==True):
-                hex += '%02X ' % item
-            else:
-                hex += '%02X' % item
-        return hex.strip()
-    
-    def toAsciiString(self):
-        ascii = '"'
-        for item in self:
-            ascii+=chr(item)
-        ascii += '"'
-        return ascii
-    
-    def toTotal(self):
-        total = 0
-        for item in self:
-            total = (total << 8) + item
-        return total
-
-        
 # High level analyzers must subclass the HighLevelAnalyzer class.
 class hla(HighLevelAnalyzer):
 
@@ -57,13 +34,14 @@ class hla(HighLevelAnalyzer):
         self.payload:DataArray = DataArray()
         self.opcode_start = 0
         self.frames = []
-        self.has_ack = False
+        self.ack_check = 0
         self.address_count=0
         self.data_count=0
         self.key_count=0
         self.repeat_count= 0
         self.recognized_opcode = None
         self.comments = []
+
 
     def gethex(self):
         h = self.payload.toHexString(isSpace=True)
@@ -111,8 +89,6 @@ class hla(HighLevelAnalyzer):
     def addframe(self, mnemonic, end_time, comments=[]):    
         hex = self.gethex()
 
-        # print(self.start_time, end_time, '0x%04X'% self.opcode_start, hex, mnemonic, ', '.join(comments) if len(comments)>0 else '') 
-
         # Display the Frame
         self.frames.append(AnalyzerFrame('UPDI', self.start_time, end_time, {
             'count' : '%04X' % self.opcode_start,
@@ -120,6 +96,152 @@ class hla(HighLevelAnalyzer):
             'command' : mnemonic,
             'comments' : ', '.join(comments) if len(comments)>0 else ''
         }))
+
+######################################################################################### 
+# Capture functions
+######################################################################################### 
+
+    def capture_start(self, byte, frame):
+        # Handle special events
+        if (byte == 0x55):
+            # SYNC event
+            self.comments.append('(SYNC)')
+            self.start_time = frame.start_time
+            return self.frames
+        elif (byte == 0xFF):
+            # IDLE event
+            self.comments.append('(IDLE)')
+            self.start_time = frame.start_time
+            self.addframe("IDLE", frame.end_time)
+            self.mnemonic = ''
+            self.comments = []
+            self.start_time = 0
+            return self.frames
+        elif (byte == 0x00):
+            # BREAK event
+            self.comments.append('(BREAK)')
+            self.start_time = frame.start_time
+            self.addframe("BREAK", frame.end_time)
+            self.mnemonic = ''
+            self.comments = []
+            self.start_time = 0
+            return self.frames 
+        else:
+            # Standard Data
+            if (self.start_time == 0):
+                self.start_time = frame.start_time
+    
+        self.address = DataArray()
+        self.data = DataArray()
+        self.recognized_opcode = None
+        self.repeat_byte = None
+        self.last_opcode_byte = None
+        self.state = States.Opcode
+
+    def capture_opcode(self, byte, frame):
+
+        # Are we repeating the last opcode?
+        if self.repeat_byte != None:
+            byte = self.repeat_byte
+
+        # Look it up
+        for code in OPCODES:
+            if (byte & code['mask']) == code['value']:
+                # Matched code from list
+                self.recognized_opcode = code.copy()
+
+        # Did we find a match?
+        if (self.recognized_opcode != None):
+            # Matched, what else do we need for this opcode?
+            if ('address' in self.recognized_opcode):
+                self.address_count = self.address_size(self.recognized_opcode['address'], byte)
+            if ('data' in self.recognized_opcode):
+                self.data_count = self.data_size(self.recognized_opcode['data'],byte)
+            if ('key' in self.recognized_opcode):
+                self.data_count = self.key_size(byte)
+            if ('register' in self.recognized_opcode):
+                self.cs = self.register_info(byte)                    
+            self.state = States.Address
+        else:
+            # No match
+            self.addframe('INVALID_OPCODE %02X' % byte, frame.end_time)
+            self.state = States.Start
+            
+        self.last_opcode_byte = byte
+
+    def capture_address(self, byte, frame):
+        if (self.start_time == 0):
+            self.start_time = frame.start_time
+        self.ack_check = 0
+        # If we need address, get it
+        if (self.address_count != 0):
+            self.address.append(byte)
+            self.address_count -= 1
+        # If we are now done with address, move on to data
+        if self.address_count == 0:
+            self.state = States.Data
+
+    def capture_data(self, byte, frame):
+        if (self.data_count != 0):
+            self.data.append(byte)
+            self.data_count -= 1
+        if self.data_count == 0:
+            self.ack_check = 0
+            self.state = States.Ack
+
+    def capture_ack(self, byte, frame):
+        if ('ack' in self.recognized_opcode and self.recognized_opcode['ack']==True):
+            if (not self.ack_check):
+                self.ack_check = 1
+            else:
+                # We expect an ACK
+                if (byte == 0x40):
+                    self.comments.append('(ACK)')
+                else:
+                    self.comments.append('(MISSING ACK)')
+                self.state = States.Complete
+        else:
+            self.state = States.Complete
+
+    def complete_command(self, byte, frame):
+        # No more data, so that means we have completed the command
+        self.mnemonic += self.recognized_opcode['name']
+
+        if ('operator' in self.recognized_opcode) and (self.recognized_opcode['operator']=='*'):
+            # REPEAT
+            self.mnemonic += ' %s %s' % (self.recognized_opcode['operator'], self.data.toHexString())
+            self.repeat_count = self.data.toTotal()
+        elif ('register' in self.recognized_opcode):
+            # LDCS, STCS 
+            self.mnemonic += ' ' + self.register(self.cs, self.recognized_opcode['operator'], self.data[0])
+        elif ('address' in self.recognized_opcode) and not ('data' in self.recognized_opcode):
+            # LD, ST PRT = 
+            self.mnemonic += ' %s %s' % (self.recognized_opcode['operator'], self.address.toHexString())
+        elif ('data' in self.recognized_opcode) and not ('address' in self.recognized_opcode):
+            # LD, ST *(PTR/PTR++)
+            self.mnemonic += ' %s %s' % (self.recognized_opcode['operator'], self.data.toHexString())
+        elif ('key' in self.recognized_opcode) and (self.recognized_opcode['operator'] == '='):
+            # Setting KEY
+            self.mnemonic += ' KEY %s %s' % (self.recognized_opcode['operator'], self.data.toAsciiString())
+        elif ('key' in self.recognized_opcode) and (self.recognized_opcode['operator'] == '=='):
+            # Getting SIB
+            self.mnemonic += ' SIB %s %s' % (self.recognized_opcode['operator'], self.data.toAsciiString())
+        elif ('data' in self.recognized_opcode) and ('address' in self.recognized_opcode):
+            # Address and data (LDS, STS)
+            self.mnemonic += ' %s %s %s' % (self.address.toHexString(),self.recognized_opcode['operator'] , self.data.toHexString())
+        
+        if (self.recognized_opcode['name']!='REPEAT') and (self.repeat_count > 0):
+            self.comments.append('(%d repeat(s) left)' % (self.repeat_count-1))
+
+        self.addframe(self.mnemonic, frame.end_time, self.comments)
+        
+        self.mnemonic = ''
+        self.comments = []
+        self.start_time = 0
+
+######################################################################################### 
+# Main DECODE Routine
+######################################################################################### 
 
     # Decode function, called by Logic 2 software for each byte
     def decode(self, frame:AnalyzerFrame):
@@ -140,133 +262,63 @@ class hla(HighLevelAnalyzer):
         
         # Start State = beginning of new command
         if (self.state == States.Start):
-            # Handle special events
-            if (byte == 0x55):
-                # SYNC event
-                self.comments.append('(SYNC)')
-                self.start_time = frame.start_time
+            self.capture_start(byte, frame)
+            if (self.state == States.Start):
                 return self.frames
-            elif (byte == 0xFF):
-                # IDLE event
-                self.comments.append('(IDLE)')
-                self.start_time = frame.start_time
-                self.addframe("IDLE", frame.end_time)
-                self.mnemonic = ''
-                self.comments = []
-                self.start_time = 0
-                return self.frames
-            elif (byte == 0x00):
-                # BREAK event
-                self.comments.append('(BREAK)')
-                self.start_time = frame.start_time
-                self.addframe("BREAK", frame.end_time)
-                self.mnemonic = ''
-                self.comments = []
-                self.start_time = 0
-                return self.frames 
-            else:
-                # Standard Data
-                if (self.start_time == 0):
-                    self.start_time = frame.start_time
         
-            self.address = DataArray()
-            self.data = DataArray()
-            self.recognized_opcode = None
-
-            # Determine which opcode we are processing
-            for code in OPCODES:
-                if (byte & code['mask']) == code['value']:
-                    # Matched code from list
-                    self.recognized_opcode = code.copy()
-                    # What additional information does this opcode require
-                    if ('address' in code):
-                        self.address_count = self.address_size(code['address'], byte)
-                    if ('data' in code):
-                        self.data_count = self.data_size(code['data'],byte)
-                    if ('key' in code):
-                        self.data_count = self.key_size(byte)
-                    if ('register' in code):
-                        self.cs = self.register_info(byte)                    
-                    self.state = States.Address
-                    break
-
-            # Now we gather the remaining data about the opcode 
-            if self.recognized_opcode != None:
-                self.state = States.Address
-            else:
-                self.addframe('INVALID_OPCODE %02X' % byte, frame.end_time)
-                
-        # If there is an address, we process it first
-        if (self.state == States.Address):
-            # It's possible that we are repeating a previous opcode, which would make the start
-            # here rather than at the opcode point
-            if (self.start_time == 0):
-                self.start_time = frame.start_time
-            # If we need address, get it
-            if (self.address_count != 0):
-                self.address.append(byte)
-                self.address_count -= 1
-            # If we are now done with address, move on to data
-            if self.address_count == 0:
-                self.state = States.Data
+        while True:
+        
+            # Process the Opcode 
+            if (self.state == States.Opcode):
+                self.capture_opcode(byte, frame)
                 return self.frames
 
-        # Next we process any data 
-        if (self.state == States.Data):
-            if (self.data_count != 0):
-                self.data.append(byte)
-                self.data_count -= 1
-            if self.data_count == 0:
+            # Process an Address, if required
+            if (self.state == States.Address):
+                self.capture_address(byte, frame)
+                if (self.state == States.Address):
+                    return self.frames
 
-                # No more data, so that means we have completed the command
-                self.mnemonic += self.recognized_opcode['name']
+            # Process any Data, if required
+            if (self.state == States.Data):            
+                self.capture_data(byte, frame)
+                if (self.state == States.Data):
+                    return self.frames
+            
+            # Look for an ACK if expected
+            if (self.state == States.Ack):
+                self.capture_ack(byte, frame)
+                if (self.state == States.Ack):
+                    return self.frames
+            
+            # Complete this command
+            if (self.state == States.Complete):
+                self.complete_command(byte, frame)
 
-                if ('operator' in self.recognized_opcode) and (self.recognized_opcode['operator']=='*'):
-                    # Data value only, REPEAT
-                    self.mnemonic += ' %s %s' % (self.recognized_opcode['operator'], self.data.toHexString())
-                    self.repeat_count = self.data.toTotal()
-                elif ('register' in self.recognized_opcode):
-                    # Register operation (LDCS, STCS operation data)
-                    self.mnemonic += ' ' + self.register(self.cs, self.recognized_opcode['operator'], self.data[0])
-                elif ('address' in self.recognized_opcode) and not ('data' in self.recognized_opcode):
-                    # Setting Pointer to Address (LD, ST)
-                    self.mnemonic += ' %s %s' % (self.recognized_opcode['operator'], self.address.toHexString())
-                elif ('data' in self.recognized_opcode) and not ('address' in self.recognized_opcode):
-                    # Data to address (ptr)
-                    self.mnemonic += ' %s %s' % (self.recognized_opcode['operator'], self.data.toHexString())
-                elif ('key' in self.recognized_opcode) and (self.recognized_opcode['operator'] == '='):
-                    # Setting KEY
-                    self.mnemonic += ' KEY %s %s' % (self.recognized_opcode['operator'], self.data.toAsciiString())
-                elif ('key' in self.recognized_opcode) and (self.recognized_opcode['operator'] == '=='):
-                    # Getting SIB
-                    self.mnemonic += ' SIB %s %s' % (self.recognized_opcode['operator'], self.data.toAsciiString())
-                elif ('data' in self.recognized_opcode) and ('address' in self.recognized_opcode):
-                    # Address and data (LDS, STS)
-                    self.mnemonic += ' %s %s %s' % (self.address.toHexString(),self.recognized_opcode['operator'] , self.data.toHexString())
-                
-                if (self.recognized_opcode['name']!='REPEAT') and (self.repeat_count > 0):
-                    self.comments.append('(%d repeat(s) left)' % (self.repeat_count-1))
-                self.addframe(self.mnemonic, frame.end_time, self.comments)
-                self.mnemonic = ''
-                self.comments = []
-                self.start_time = 0
-
-                # Are we repeating?  (We don't repeat the repeat command itself)
+                # Are we repeating?  (We don't repeat the REPEAT command itself)
                 if (self.recognized_opcode['name']!='REPEAT') and (self.repeat_count > 0):
                     # We finished a repeat
+                    self.repeat_opcode = self.recognized_opcode
                     self.repeat_count -= 1
                     if (self.repeat_count > 0):
                         # We need to repeat this command again
                         # We start next cycle with command alread recognized, ready to process address, data, etc
-                        self.state = States.Address
                         self.address = DataArray()
                         self.data = DataArray()
+                        self.state = States.Opcode
+                        self.repeat_byte = self.last_opcode_byte
                     else:
                         self.state = States.Start
+                        break
                 else:
                     self.state = States.Start
-        return self.frames
-    
+                    break
+
+        return self.frames 
+
+######################################################################################### 
+# Register Decoding
+######################################################################################### 
 
     # Decode the CS register names and values
     def register(self, cs, operator, data):
@@ -325,6 +377,10 @@ class hla(HighLevelAnalyzer):
                 break
         
         return ('%s %s 0x%02X' % (register_name, operator, data) + (' (%s)' % ', '.join(register_parts) if len(register_parts) else ''))
+
+######################################################################################### 
+# Memory Decoding
+######################################################################################### 
 
     def MemoryMap(self, address, value, direction='='):
         if address <= 0x003F:
