@@ -1,5 +1,4 @@
 build/
 cmake/
-__pychache__/
+__pycache__/
 .DS_Store
-
