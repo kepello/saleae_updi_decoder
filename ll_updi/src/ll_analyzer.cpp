@@ -278,11 +278,6 @@ bool ll_analyzer::synced()
                 else
                 {
                     Identify( data_start_bit, "DATA", FLAG_DATA, data_value );
-                    // Is the spacing remaining after the last bit large enough to call out as
-                    // an official idle
-                    if ((channel->GetSampleOfNextEdge() - channel->GetSampleNumber()) > (bit_rate * 13)) {
-                        Identify("IDLE", FLAG_IDLE, 0xFF);
-                    }
                 }
                 return true;
                 break;
