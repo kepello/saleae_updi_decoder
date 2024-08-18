@@ -44,10 +44,10 @@ class ll_analyzer : public Analyzer2
     bool unsynced();
     bool synced();
     bool decode( U8 byte );
-    bool Valid( BitState bit, U64 width );
+    bool Valid( U64 last_bit, BitState bit, U64 width );
     U64 CurrentWidth();
     U64 ByteCount;
-    void Identify( U64 start, U64 end, const char* note, FrameFlags flag = FLAG_NONE, int value = 0);
+    void Identify( U64 start, U64 end, const char* note, FrameFlags flag = FLAG_NONE, int value = 0 );
     void Identify( const char* note, FrameFlags flag = FLAG_NONE, int value = 0 );
     void Identify( U64 start, const char* note, FrameFlags flag = FLAG_NONE, int value = 0 );
 

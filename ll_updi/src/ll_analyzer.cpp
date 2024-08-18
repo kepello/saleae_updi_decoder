@@ -28,7 +28,7 @@ void ll_analyzer::SetupResults()
     mResults->AddChannelBubblesWillAppearOn( mSettings->mInputChannel );
 }
 
-bool ll_analyzer::Valid( BitState bit, U64 Width = 0 )
+bool ll_analyzer::Valid( U64 previous, BitState bit, U64 Width = 0 )
 {
     U64 this_width = channel->GetSampleOfNextEdge() - channel->GetSampleNumber();
     if( Width == 0 )
@@ -44,10 +44,13 @@ bool ll_analyzer::Valid( BitState bit, U64 Width = 0 )
         Identify( "NARROW", FLAG_NARROW, -1 );
         return false;
     }
-    else if( this_width > ( Width * 2.5 ) )
+    else if( ( previous ) && ( this_width > ( Width * 1.25 ) ) )
     {
         if( channel->GetBitState() == BIT_HIGH )
+        {
+            Identify( previous, "BREAK", FLAG_BREAK, 0x00 );
             Identify( "IDLE", FLAG_IDLE, 0xFF );
+        }
         else
             Identify( "BREAK", FLAG_BREAK, 0x00 );
         return false;
@@ -81,19 +84,18 @@ void ll_analyzer::Identify( U64 start, U64 end, const char* note, FrameFlags fla
         baud = ( this->GetSampleRate() / frame.mData1 );
         ss << "(Baud Rate: " << baud << ")";
 
-
         // Add data for SYNC
         frameV2.AddByte( "data", 0x55 );
+        frameV2.AddString( "command", ss.str().c_str() );
     }
     else
     {
-        // Add data value if there is one
-        if( value != -1 )
+        // Add data value if there is one if( value != -1 )
         {
             frameV2.AddByte( "data", value );
         }
     }
-    
+
     mResults->AddFrameV2( frameV2, note, start, end );
 }
 
@@ -116,6 +118,7 @@ bool ll_analyzer::unsynced()
 {
     static U8 sync_bit_count = 0;
     static U64 sync_start = 0;
+    static U64 last_bit = 0;
 
     if( sync_bit_count == 0 )
     {
@@ -139,7 +142,7 @@ bool ll_analyzer::unsynced()
     else if( sync_bit_count < 8 )
     {
         // Check the widths of subsequent single wide-bits
-        if( !Valid( ( sync_bit_count & 0x01 ) ? BIT_HIGH : BIT_LOW ) )
+        if( !Valid( last_bit, ( sync_bit_count & 0x01 ) ? BIT_HIGH : BIT_LOW ) )
         {
             sync_bit_count = 0;
             sync_start = 0;
@@ -152,7 +155,7 @@ bool ll_analyzer::unsynced()
     }
     else if( sync_bit_count == 8 )
     {
-        if( !Valid( BIT_LOW, bit_rate * 2 ) )
+        if( !Valid( 0, BIT_LOW, bit_rate * 2 ) )
         {
             sync_bit_count = 0;
             sync_start = 0;
@@ -166,7 +169,7 @@ bool ll_analyzer::unsynced()
     }
     else
     {
-        if( !Valid( BIT_HIGH, bit_rate * 2 ) )
+        if( !Valid( 0, BIT_HIGH, bit_rate * 2 ) )
         {
             sync_bit_count = 0;
             sync_start = 0;
@@ -187,6 +190,7 @@ bool ll_analyzer::unsynced()
     }
 
     // Default is that we are not synced
+    last_bit = channel->GetSampleNumber();
     return true;
 }
 
@@ -217,9 +221,8 @@ bool ll_analyzer::synced()
         // Too small, could be a speed change
         // Immediately jump to an unsynced condition at the current bit
         // Identify( "NARROW", FLAG_NARROW );
-        // data_bit_count = 0;
-        unsynced();
-        return false;
+        data_bit_count = 0;
+        return !unsynced();
     }
 
     if( channel->GetBitState() == BIT_HIGH && data_bit_count == 0 )
@@ -249,7 +252,7 @@ bool ll_analyzer::synced()
             case 1:
                 data_value = 0;
                 data_start_bit = channel->GetSampleNumber();
-                mResults->AddMarker( data_start_bit, AnalyzerResults::Start, mSettings->mInputChannel );
+                mResults->AddMarker( data_start_bit, AnalyzerResults::Dot, mSettings->mInputChannel );
                 break;
             case 2 ... 9:
                 mResults->AddMarker( channel->GetSampleNumber(), channel->GetBitState() ? AnalyzerResults::One : AnalyzerResults::Zero,

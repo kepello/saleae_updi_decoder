@@ -76,25 +76,32 @@ class hla(HighLevelAnalyzer):
             # SYNC event
             self.mnemonic += 'SYNC '
             self.start_time = frame.start_time
+            self.state = States.Opcode
             return self.frames
+        
         elif (byte == 0xFF):
             # IDLE event
             self.start_time = frame.start_time
             self.addframe("IDLE", "", "", frame.end_time)
             self.start_time = 0
             return self.frames
+        
         elif (byte == 0x00):
             # BREAK event
             self.start_time = frame.start_time
             self.addframe("BREAK", "Break", "", frame.end_time)
             self.start_time = 0
             return self.frames 
+        
         else:
             # Standard Data
+            self.start_time = frame.start_time
+            self.addframe("UNKNOWN","Unknown","",frame.end_time)
+
             if (self.start_time == 0):
                 self.start_time = frame.start_time
         
-        self.state = States.Opcode
+        # self.state = States.Opcode
 
     def capture_opcode(self, byte, frame):
 
@@ -255,8 +262,7 @@ class hla(HighLevelAnalyzer):
             # Start State = beginning of new command
             if (self.state == States.Start):
                 self.capture_start(byte, frame)
-                if (self.state == States.Start):
-                    return self.frames
+                return self.frames
             
             # Process the Opcode                       
             if (self.state == States.Opcode):
