@@ -65,7 +65,7 @@ REGISTERS = [
                 "bit"       : 4,
                 "values"    : {
                     0 : 'Enabled',
-                    0 : 'Disabled'
+                    1 : 'Disabled'
                 }
             },
             {

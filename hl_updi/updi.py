@@ -45,9 +45,6 @@ class hla(HighLevelAnalyzer):
         self.unknown_bits = True if self.ShowUnknownBits == 'Yes' else False
         self.total_repeats = 0
 
-        print('INIT')
-
-
     def addframe(self, mnemonic, pseudocode, response, end_time):    
         hex = self.payload.toHexString(isSpace=True)
         self.opcode_start += len(self.payload)
@@ -110,7 +107,6 @@ class hla(HighLevelAnalyzer):
             if (code['value'] == byte & (code['mask'] if 'mask' in code else 0xFF)):
                 # Matched code from list
                 self.recognized_opcode = code.copy()
-                print('MATCHED 0x%02X' % byte, code)
                 break
 
         # Did we find a match?
@@ -123,22 +119,23 @@ class hla(HighLevelAnalyzer):
             if ('key' in self.recognized_opcode):
                 self.data_count = KEY_SIZE[byte & 0b11]
             if ('register' in self.recognized_opcode):
-                self.cs = byte & 0b1111            
-            self.state = States.Address
+                self.cs = byte & 0b1111     
+            if ('type' in self.recognized_opcode and self.recognized_opcode['type']=='unknown'):
+                if ('ack' in self.recognized_opcode and self.recognized_opcode['ack']== True):
+                    self.state = States.Ack
+                else:
+                    self.state = States.Complete 
+            else:
+                self.state = States.Address
         else:
             # No match
             self.addframe('INVALID_OPCODE 0x%02X' % byte, "Invalid Command 0x%02X", "", frame.end_time)
             self.state = States.Start
         self.last_opcode_byte = byte
 
-        # If there is no more data, bypass any further gathering
-        if (self.address_count <1 and self.data_count <0 and 'ack' not in self.recognized_opcode):
-            self.state = States.Complete
-
     def capture_address(self, byte, frame):
         if (self.start_time == 0):
             self.start_time = frame.start_time
-        self.ack_check = 0
         # If we need address, get it
         if (self.address_count > 0):
             self.address.append(byte)
@@ -148,28 +145,26 @@ class hla(HighLevelAnalyzer):
             self.state = States.Data
 
     def capture_data(self, byte, frame):
+        # if we need data, get it
         if (self.data_count > 0):
             self.data.append(byte)
             self.data_count -= 1
         if self.data_count < 1:
-            self.ack_check = 0
-            self.state = States.Ack
+            self.ack_count = 0
+            if ('ack' in self.recognized_opcode and self.recognized_opcode['ack']==True):
+                self.state = States.Ack
+            else:
+                self.state = States.Complete
 
     def capture_ack(self, byte, frame):
-        if ('ack' in self.recognized_opcode and self.recognized_opcode['ack']==True):
-            if (not self.ack_check):
-                self.ack_check = 1
-            else:
-                # We expect an ACK
-                if (byte == 0x40):
-                    self.response += (' (ACK)')
-                else:
-                    self.response += (' (MISSING ACK)')
-                self.state = States.Complete
+        # We expect an ACK
+        if (byte == 0x40):
+            self.response += (' (ACK)')
         else:
-            self.state = States.Complete
+            self.response += (' (MISSING ACK)')
+        self.state = States.Complete
 
-    def complete_command(self, byte, frame):
+    def complete_command(self, frame):
         code = self.recognized_opcode.copy()
         command = self.recognized_opcode['name']
         self.mnemonic += command + ' '
@@ -227,14 +222,13 @@ class hla(HighLevelAnalyzer):
             self.mnemonic += 'x %s' % data
             self.pseudocode = 'Repeat next command %d times' % self.repeat_count
         else:
-            print('UNKNOWN')
             # Unknown Command
             self.mnemonic += 'UNKNOWN COMMAND'
             self.pseudocode = 'Unknown Command'
+            self.state = States.Ack
 
         self.pseudocode = self.repeat_text + self.pseudocode
         self.addframe(self.mnemonic, self.pseudocode, self.response, frame.end_time)
-        
         self.mnemonic = ''
         self.response = ''
         self.start_time = 0
@@ -264,33 +258,31 @@ class hla(HighLevelAnalyzer):
                 if (self.state == States.Start):
                     return self.frames
             
-            # Process the Opcode 
+            # Process the Opcode                       
             if (self.state == States.Opcode):
-                self.capture_opcode(byte, frame)
+                self.capture_opcode(byte, frame)    
                 if (self.state != States.Complete):
-                    return self.frames
+                    return self.frames               
 
-            # Process an Address, if required
+            # Process an Address, if required               
             if (self.state == States.Address):
                 self.capture_address(byte, frame)
-                if (self.state == States.Address):
+                if (self.state != States.Data):
                     return self.frames
 
             # Process any Data, if required
             if (self.state == States.Data): 
-                self.capture_data(byte, frame)
-                if (self.state == States.Data):
+                self.capture_data(byte, frame)     
+                if (self.state != States.Complete):
                     return self.frames
             
             # Look for an ACK if expected
             if (self.state == States.Ack):
                 self.capture_ack(byte, frame)
-                if (self.state == States.Ack):
-                    return self.frames
 
-            # Complete this command
+            # Complete this command (Does not require the next byte in the stream to complete)
             if (self.state == States.Complete):
-                self.complete_command(byte, frame)
+                self.complete_command(frame)
 
                 # Are we repeating?  (We don't repeat the REPEAT command itself)
                 if (self.recognized_opcode['name']!='REPEAT') and (self.repeat_count > 0):
@@ -302,8 +294,8 @@ class hla(HighLevelAnalyzer):
                         # We start next cycle with command alread recognized, ready to process address, data, etc
                         self.address = DataArray()
                         self.data = DataArray()
-                        self.state = States.Opcode
                         self.repeat_byte = self.last_opcode_byte
+                        self.state = States.Opcode
                     else:
                         self.state = States.Start
                         break
@@ -315,6 +307,7 @@ class hla(HighLevelAnalyzer):
         self.mnemonic = ''
         self.pseudocode = ''
 
+        # Get the next byte and keep processing
         return self.frames 
 
 ######################################################################################### 
@@ -371,7 +364,7 @@ class hla(HighLevelAnalyzer):
                     # Handle masked amounts
                     elif ('mask' in component):
                         component_value = (data & component['mask']) >> (component['shift'] if 'shift' in component else 0)
-                        if ('values' in component):
+                        if ('values' in component and component_value in component['values']):
                             component_definition = component['values'][component_value]
                         else:
                             component_definition = '0x%02X' % component_value
